@@ -33,16 +33,20 @@
 
 .token-details-image {
     width: 4rem;
-    height: 4rem;
+    aspect-ratio: 3 / 4;
+    position: relative;
     border-radius: 8px;
     overflow: hidden;
     flex-shrink: 0;
 }
 
 .token-details-image-media {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center 40%;
     display: block;
 }
 

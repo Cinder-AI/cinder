@@ -27,6 +27,7 @@ const MIN_PRICE = 0.0000001
 const DEFAULT_PRICE = 0.00000558
 const NOISE = 0.001
 const MARKET_CAP_ANIMATION_MS = 1200
+const PROGRESS_ANIMATION_MS = 1200 * 100
 
 const clampProgress = (value?: number) => {
   const numeric = typeof value === 'number' && !Number.isNaN(value) ? value : 0
@@ -84,6 +85,7 @@ export const Chart = ({ token }: ChartProps) => {
   const lineProgressRef = useRef(lineProgress)
   const marketCapRef = useRef(marketCapValue)
   const progressAnimId = useRef<number | null>(null)
+  const displayProgressRef = useRef(displayProgress)
 
   const latestPrice = useMemo(() => {
     if (!points.length) return basePrice
@@ -107,6 +109,12 @@ export const Chart = ({ token }: ChartProps) => {
 
   const marketCapDisplay = useMemo(() => formatNumber(Math.max(marketCapValue, 0)), [marketCapValue])
 
+  const targetProgress = useMemo(() => {
+    const progressFromCap = baseCap ? (marketCapValue / baseCap) * 100 : 0
+    const tokenProgress = clampProgress(token.progress)
+    return clampProgress(Math.max(progressFromCap, tokenProgress))
+  }, [marketCapValue, baseCap, token.progress])
+
   const volumeDisplay = useMemo(() => {
     const baseVolume = Number.isFinite(token.volume24h) ? token.volume24h : baseCap * 0.35
     const ratio = basePrice ? latestPrice / basePrice : 1
@@ -121,19 +129,34 @@ export const Chart = ({ token }: ChartProps) => {
     lineProgressRef.current = 0
     setMarketCapValue(baseCap)
     marketCapRef.current = baseCap
-    setDisplayProgress(80)
-  }, [token.id, token.price, token.price24Change, baseCap])
+    setDisplayProgress(clampProgress(token.progress))
+  }, [token.id, baseCap, token.progress])
 
   useEffect(() => {
     let animationId = 0
     const start = performance.now()
 
-    const from = marketCapRef.current
     const animate = (timestamp: number) => {
       const elapsed = timestamp - start
       const t = Math.min(elapsed / MARKET_CAP_ANIMATION_MS, 1)
       const eased = 1 - Math.pow(1 - t, 3)
       setLineProgress(eased)
+      if (t < 1) animationId = requestAnimationFrame(animate)
+    }
+
+    animationId = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animationId)
+  }, [token.id])
+
+  useEffect(() => {
+    let animationId = 0
+    const from = marketCapRef.current
+    const start = performance.now()
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - start
+      const t = Math.min(elapsed / MARKET_CAP_ANIMATION_MS, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
       const next = Math.floor(from + (targetMarketCap - from) * eased)
       setMarketCapValue(next)
       marketCapRef.current = next
@@ -145,20 +168,37 @@ export const Chart = ({ token }: ChartProps) => {
   }, [targetMarketCap])
 
   useEffect(() => {
-    const start = 80
-    const target = Math.max(clampProgress(token.progress), 80)
-    setDisplayProgress(start)
+    displayProgressRef.current = displayProgress
+  }, [displayProgress])
 
-    const step = Math.max((target - start) / 60, 0.2) // плавный рост ~18s max
-    const interval = window.setInterval(() => {
-      setDisplayProgress(prev => {
-        if (prev >= target) return target
-        return Math.min(prev + step, target)
-      })
-    }, 300)
+  useEffect(() => {
+    if (progressAnimId.current) {
+      cancelAnimationFrame(progressAnimId.current)
+    }
 
-    return () => window.clearInterval(interval)
-  }, [token.id, token.progress])
+    const from = displayProgressRef.current
+    const to = targetProgress
+    const start = performance.now()
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - start
+      const t = Math.min(elapsed / PROGRESS_ANIMATION_MS, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      const next = from + (to - from) * eased
+      setDisplayProgress(next)
+      displayProgressRef.current = next
+      if (t < 1) {
+        progressAnimId.current = requestAnimationFrame(animate)
+      }
+    }
+
+    progressAnimId.current = requestAnimationFrame(animate)
+    return () => {
+      if (progressAnimId.current) {
+        cancelAnimationFrame(progressAnimId.current)
+      }
+    }
+  }, [targetProgress])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
