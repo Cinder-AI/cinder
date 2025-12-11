@@ -1,0 +1,200 @@
+/* Token Card Styles */
+.token-card-wrapper {
+    border-radius: 24px;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(253, 188, 72, 1), rgba(236, 105, 99, 1));
+    padding: 6px;
+    margin: 0 1rem 2rem 1rem;
+    max-width: 400px;
+    height: 100%;
+}
+
+.token-card-wrapper--boosted {
+    position: relative;
+    box-shadow: 0 0 26px rgba(247, 156, 82, 0.55), 0 0 70px rgba(255, 196, 92, 0.5);
+    animation: boostGlow 2.4s ease-in-out infinite;
+}
+
+.token-card-wrapper--glow {
+    box-shadow: 0 0 18px rgba(255, 154, 68, 0.55), 0 0 34px rgba(255, 98, 0, 0.35);
+    transition: box-shadow 0.25s ease;
+}
+
+.token-card-wrapper--boosted::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 30px;
+    background: radial-gradient(circle, rgba(255,196,92,.45), transparent 65%);
+    filter: blur(6px);
+    z-index: 0;
+}
+
+.token-card-wrapper--boosted::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    border: 2px solid rgba(255,255,255,.45);
+    z-index: 1;
+    pointer-events: none;
+}
+
+@keyframes boostGlow {
+    0%,100% {
+        box-shadow: 0 0 18px rgba(247,156,82,.45), 0 0 50px rgba(255,196,92,.4);
+    }
+    50% {
+        box-shadow: 0 0 34px rgba(247,156,82,.75), 0 0 90px rgba(255,196,92,.7);
+    }
+}
+/* Внутренняя карточка с фоновым изображением */
+.token-card {
+    border-radius: 18px;
+    padding: 1.5rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Полупрозрачный оверлей для читаемости текста */
+.token-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.5) 100%);
+    z-index: 1;
+}
+
+.token-card-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+
+.token-card-media video,
+video.token-card-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.token-card-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.token-card-info,
+.token-card-footer {
+    position: relative;
+    z-index: 2;
+}
+
+.token-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+}
+
+.token-card-creator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 400;
+    font-size: 9.2px;
+}
+
+.token-creator {
+    
+}
+
+.token-time {
+    /* Add specific styles if needed */
+}
+
+.token-ticker {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 1rem 0;
+    color: white;
+}
+
+.token-image {
+    width: 100%;
+    height: 300px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.token-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.token-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FEBF47 0%, #FF8A47 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Mobile Responsive for Token Card */
+@media (max-width: 768px) {
+    .token-card {
+        padding: 1rem;
+    }
+    
+    .token-ticker {
+        font-size: 1.5rem;
+    }
+    
+    .token-image {
+        height: 250px;
+    }
+} 
+
+.boost-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    height: 100%;
+    
+}

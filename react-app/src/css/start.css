@@ -1,0 +1,10 @@
+/* Start Page - Component-based styles */
+
+/* Import component styles */
+@import './start-page.css';
+@import './welcome-screen.css';
+@import './phone-mockup.css';
+@import './progress-dots.css';
+@import './welcome-text.css';
+@import './welcome-buttons.css';
+@import './chart.css';

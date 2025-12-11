@@ -1,0 +1,70 @@
+/* Discovery Page - Component-based styles */
+
+/* Import component styles */
+@import './components/token-card.css';
+@import './components/amount-selector.css'; 
+@import './components/header.css';
+
+/* Discovery Page Layout */
+.discovery-page {
+    padding: 2rem;
+    height: 100%;
+    position: relative;
+}
+
+/* Cards Stack Layout */
+.cards-stack {
+    position: relative;
+    height: 60%;
+}
+
+.token-card {
+    height: 100%;
+}
+
+.next-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0.3;
+    transform: scale(0.95);
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 0.1s ease, transform 0.1s ease;
+    height: 100%;
+}
+
+.current-card {
+    position: relative;
+    z-index: 2;
+    transition: none;
+    height: 100%;
+}
+
+/* Анимация при свайпе - показываем следующую карточку */
+.current-card.swiping-left + .next-card,
+.current-card.swiping-right + .next-card {
+    opacity: 0.7;
+    transform: scale(0.98);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.discovery-page-bottom-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .discovery-page {
+        padding: 0.5rem;
+    }
+
+    .discovery-page-bottom-buttons {
+        padding: 1rem 0.5rem 0 0.5rem;
+        height: 40%;
+    }
+}
+

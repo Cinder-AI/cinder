@@ -1,0 +1,16 @@
+.layout {
+    max-height: 100dvh;
+    overflow: hidden;
+    font-family: 'Altone', sans-serif;
+}
+
+.page-content {
+    height: 90dvh;
+}
+
+@media (min-width: 1024px) {
+    .layout {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+}

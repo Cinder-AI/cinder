@@ -1,0 +1,52 @@
+/* Welcome Text Component */
+.welcome-text-section {
+    grid-area: text;
+    text-align: center;
+    height: 8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.welcome-title {
+    font-size: 3.5rem;
+    font-weight: bold;
+    margin: 0 0 1rem 0;
+    color: white;
+    font-family: 'Altone', sans-serif;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.welcome-description {
+    font-family: 'Altone', sans-serif;
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    padding: 0 2rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .welcome-text-section {
+        height: 6rem;
+    }
+    
+    .welcome-title {
+        font-size: 2.5rem;
+    }
+    
+    .welcome-description {
+        font-size: 16px;
+        padding: 0 1rem;
+        -webkit-line-clamp: 2;
+    }
+} 
