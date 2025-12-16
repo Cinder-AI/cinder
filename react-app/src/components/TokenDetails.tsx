@@ -29,6 +29,7 @@ export const TokenDetails = ({ token }: TokenDetailsProps) => {
             alt={token.name}
             className="token-details-image-media"
             objectFit="cover"
+            showPosterOnly={true}
           />
         </div>
         <div className="token-details-name">

@@ -13,6 +13,7 @@ export interface TokenMediaProps {
   className?: string
   style?: CSSProperties
   objectFit?: CSSProperties['objectFit']
+  showPosterOnly?: boolean
 }
 
 export const TokenMedia = ({
@@ -22,6 +23,7 @@ export const TokenMedia = ({
   className,
   style,
   objectFit = 'cover',
+  showPosterOnly = false,
 }: TokenMediaProps) => {
   const source = media ?? (fallbackSrc ? { type: 'image' as MediaType, src: fallbackSrc } : null)
   const fitStyle: CSSProperties = {
@@ -36,6 +38,17 @@ export const TokenMedia = ({
   if (!source) return null
 
   if (source.type === 'video') {
+    if (showPosterOnly) {
+      return (
+        <img
+          src={source.poster ?? fallbackSrc ?? source.src}
+          alt={alt}
+          className={className}
+          style={fitStyle}
+        />
+      )
+    }
+
     return (
       <video
         className={className}

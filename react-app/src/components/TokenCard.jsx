@@ -20,6 +20,7 @@ export function TokenCard({
   onSwipeLeft,
   onSwipeRight,
   controlsRef = null,
+  isPreview = false,
 }) {
   const wrapperRef = useRef(null)
   const rafRef = useRef(0)
@@ -168,11 +169,9 @@ export function TokenCard({
     if (!element) return
 
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
-    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800
-    const exitX = direction === 'right' ? viewportWidth * 0.9 : -viewportWidth * 0.9
-    const speedBoost = Math.min(Math.abs(velocity) * 900, 240)
-    const exitY = Math.min(viewportHeight * 0.35 + speedBoost, viewportHeight * 0.5)
-    const rotation = direction === 'right' ? 16 : -16
+    const exitX = direction === 'right' ? viewportWidth * 1.2 : -viewportWidth * 1.2
+    const exitY = 0
+    const rotation = 0
 
     element.classList.remove('swiping-right', 'swiping-left')
     element.style.transform = `translate(${exitX}px, ${exitY}px) rotate(${rotation}deg)`
@@ -314,7 +313,13 @@ export function TokenCard({
       style={{ cursor: 'grab', touchAction: 'none' }}
     >
       <div className="token-card">
-        <TokenMedia media={mediaSource} fallbackSrc={image} alt={ticker} className="token-card-media" />
+        <TokenMedia
+          media={mediaSource}
+          fallbackSrc={image}
+          alt={ticker}
+          className="token-card-media"
+          showPosterOnly={isPreview}
+        />
         <div className="token-card-header">
           <div className="token-card-info">
             <div className="token-card-info-content">

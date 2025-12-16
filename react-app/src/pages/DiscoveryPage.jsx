@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef} from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useWallet } from '@fuels/react'
@@ -143,7 +143,7 @@ export function DiscoveryPage() {
     fetchAssets();
   }, [cinderContract, launchpadContract, ammContract, wallet]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const currentToken = tokens[currentIndex];
     if (!currentToken) {
       setDisplayProgress(0);
@@ -161,23 +161,25 @@ export function DiscoveryPage() {
 
     matchTriggerRef.current = false;
 
-    // Анимируем только токен с id 3
+    // Анимируем только токен с id 3: заполняем с 0 до фактического прогресса
     if (currentToken.id !== 3) {
       setDisplayProgress(base);
       setProgressGlow(base >= 80);
       return () => {};
     }
 
-    const target = base >= 80 ? base : 80;
+    const target = Math.max(base, 80);
 
-    setDisplayProgress(base);
-    setProgressGlow(base >= 80);
+    setDisplayProgress(0);
+    setProgressGlow(target >= 80);
 
-    if (base >= target) return () => {};
+    if (target <= 0) return () => {};
+
+    const step = Math.max(1, Math.ceil(target / 60));
 
     progressIntervalRef.current = setInterval(() => {
       setDisplayProgress(prev => {
-        const next = Math.min(prev + 1, target);
+        const next = Math.min(prev + step, target);
         if (next >= 80) setProgressGlow(true);
         if (next === target && progressIntervalRef.current) {
           clearInterval(progressIntervalRef.current);
@@ -185,7 +187,7 @@ export function DiscoveryPage() {
         }
         return next;
       });
-    }, 1000);
+    }, 8);
 
     return () => {
       if (progressIntervalRef.current) {
@@ -209,7 +211,7 @@ export function DiscoveryPage() {
       matchTimeoutRef.current = setTimeout(() => {
         setMatchToken(currentToken);
         setShowMatch(true);
-      }, 2000);
+      }, 1300);
     }
 
     return () => {
@@ -313,9 +315,10 @@ export function DiscoveryPage() {
           <div className="next-card" key={`next-${currentIndex}`}>
             <TokenCard
               {...nextToken}
-              media={nextToken.id === 3 ? null : nextToken.media}
+              media={nextToken.media}
               glow={false}
               controlsRef={swipeControls}
+              isPreview
               onSwipeLeft={() => {}}
               onSwipeRight={() => {}}
             />
@@ -325,10 +328,11 @@ export function DiscoveryPage() {
           <div className="current-card" key={`current-${currentIndex}`}>
             <TokenCard
               {...currentToken}
-              media={currentToken.id === 3 ? null : currentToken.media}
+              media={currentToken.media}
               progress={displayProgress}
               glow={progressGlow}
               controlsRef={swipeControls}
+              isPreview={false}
               onSwipeLeft={next}
               onSwipeRight={handlePledge}
             />

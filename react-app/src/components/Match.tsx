@@ -4,6 +4,8 @@ import { BottomSheet } from './BottomSheet.jsx'
 import { Button } from './Button.jsx'
 import { TokenMedia } from './TokenMedia'
 import WAIFU_VIDEO from '../assets/tokens/WAIFU.mp4'
+
+import WAIFU_VIDEO2 from '../assets/tokens/WAIFU2.mp4'
 import { useNavigate } from 'react-router-dom'
 
 import { Campaign, Token } from '../types/index.ts'
@@ -65,7 +67,7 @@ export const Match: React.FC<MatchProps> = ({
             <TokenMedia
               media={
                 token.id === 3
-                  ? { type: 'video', src: WAIFU_VIDEO, poster: token.image }
+                  ? { type: 'video', src: WAIFU_VIDEO2, poster: token.image }
                   : token.media
               }
               fallbackSrc={token.image}

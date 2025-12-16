@@ -47,7 +47,7 @@ export function createDefaultState() {
         src: ELON_VIDEO,
         poster: ELON
       },
-      creator: 'elonmusk',
+      creator: 'Zupp',
       isSystemToken: false,
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000004',
@@ -60,23 +60,7 @@ export function createDefaultState() {
       price: 0.00000558,
       isBoosted: false
     },
-    { 
-      id: 8, 
-      name: 'PEPE', 
-      ticker: '$PEPE', 
-      description: 'PEPE', 
-      image: PEPE, 
-      creator: 'pepekek',
-      isSystemToken: false,
-      status: 'active',
-      assetId: '0x0000000000000000000000000000000000000000000000000000000000000008',
-      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 550000,
-      totalSupply: 0,
-      target: CAMPAIGN_TARGET,
-      progress: 55,
-      timeAgo: '2hr ago'
-    },
+
     {
       id: 14,
       name: 'TRUMP',
@@ -88,20 +72,27 @@ export function createDefaultState() {
         src: TRUMP_VIDEO,
         poster: TRUMP
       },
-      creator: 'trump',
+      creator: 'MemeForge',
       isSystemToken: false,
       status: 'active',
       assetId: '0x000000000000000000000000000000000000000000000000000000000000000E',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 1000000,
+      totalPledged: 0,
+      progress: 0,
+      timeAgo: '2hr ago',
     },
     { 
-      id: 3, 
-      name: 'WaiFU', 
-      ticker: '$WaiFU', 
-      description: 'Digital AI Companion', 
-      image: WAIFU, 
-      creator: 'dev2326',
+      id: 3,
+      name: 'WaiFU',
+      ticker: '$WaiFU',
+      description: 'Digital AI Companion',
+      image: WAIFU,
+      media: {
+        type: 'video',
+        src: WAIFU_VIDEO,
+        poster: WAIFU
+      },
+      creator: 'KawaiiLaunch',
       isSystemToken: false,
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000003',
@@ -114,7 +105,23 @@ export function createDefaultState() {
       price: 0.00000558,
       marketCap: 17300
     },
-
+    {
+      id: 8,
+      name: 'PEPE',
+      ticker: '$PEPE',
+      description: 'PEPE',
+      image: PEPE,
+      creator: 'pepekek',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000008',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 550000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 55,
+      timeAgo: '2hr ago'
+    },
     { 
       id: 7, 
       name: 'GIGA', 

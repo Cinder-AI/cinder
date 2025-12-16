@@ -8,15 +8,10 @@ export function BondingCurve({ progress, glow = false, showText = true }) {
       <div className="bonding-progress">
         <div
           className={`bonding-fill${isHot ? ' bonding-fill--hot' : ''}`}
-          style={{ width: `${normalized}%` }}
+          style={{ width: `${normalized}%`, transition: 'none' }}
         />
       </div>
       <span className="bonding-text">{displayValue}% {showText ? 'Bonded' : ''}</span>
     </div>
   )
 }
-
-
-
-
-
