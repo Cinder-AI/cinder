@@ -289,6 +289,7 @@ export function createDefaultState() {
       status: 'active',
       progress: 0,
       timeAgo: '2m ago',
+      isBoosted: true,
     },
   ];
 
