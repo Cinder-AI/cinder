@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback, useLayoutEffect } from "react";
+import { gsap } from "gsap";
 import { useStore } from "../store/StoreProvider.jsx"
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../utils/index.ts";
@@ -33,15 +34,6 @@ const detectMovements = (current, prevRanks) =>
     return acc;
   }, {});
 
-const pickSwapPair = (tokens) => {
-  if (tokens.length < 2) return null;
-  const upperIndex = Math.max(0, Math.min(4, tokens.length - 2));
-  const elonToken = tokens.find(token => token.name === 'ELON');
-  const ai16zToken = tokens.find(token => token.name === 'AI16Z');
-
-  return { upper: ai16zToken, lower: elonToken };
-};
-
 const pickLaunchCandidate = (tokens) =>
   tokens.find(token => token.totalPledged >= LAUNCH_THRESHOLD && token.status === "active");
 
@@ -57,23 +49,6 @@ const useMovementTracking = (tokens, movements, setMovements, prevRanksRef) => {
     const timer = setTimeout(() => setMovements({}), MOVEMENT_RESET_DELAY);
     return () => clearTimeout(timer);
   }, [movements, setMovements]);
-};
-
-const useSwapDemo = (tokens, addPledge, swapDemoRef) => {
-  useEffect(() => {
-    if (swapDemoRef.current) return;
-
-    const pair = pickSwapPair(tokens);
-    if (!pair?.upper || !pair.lower) return;
-
-    const delta = Math.max(10, pair.upper.totalPledged - pair.lower.totalPledged + 5000);
-    const timer = setTimeout(() => {
-      addPledge(pair.lower.id, delta);
-      swapDemoRef.current = true;
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [tokens, addPledge, swapDemoRef]);
 };
 
 const useTopLaunchDemo = (leader, addPledgeRef, launchCampaignRef, launchDemoRef, setMovements) => {
@@ -101,19 +76,89 @@ const useTopLaunchDemo = (leader, addPledgeRef, launchCampaignRef, launchDemoRef
   }, [leader?.id, leader?.status, launchDemoRef, setMovements]);
 };
 
+const useScriptedSwapDemo = (getTokensRef, addPledgeRef, swapDemoRef, onFinished) => {
+  useEffect(() => {
+    if (swapDemoRef.current) return;
+
+    const timers = [];
+    const activeTokens = () =>
+      getTokensRef.current().filter(token => !token.isSystemToken && token.status !== "launched");
+
+    const findByName = (tokens, name) =>
+      tokens.find(t => t.name?.toLowerCase() === name.toLowerCase());
+
+    const steps = [
+      { fromName: "ELON", overName: "TRUMP", delay: 1500 },
+      { fromName: "WaiFU", overName: "Pengu", delay: 3000 },
+      { fromName: "WaiFU", overName: "TRUMP", delay: 4500 },
+      { fromName: "WaiFU", overName: "ELON", delay: 6000 },
+    ];
+
+    const hasInitialTop = selectTopTokens(activeTokens()).length >= 4;
+    if (!hasInitialTop) return;
+
+    const boost = ({ fromName, overName, delay }) => {
+      const timer = setTimeout(() => {
+        const tokens = selectTopTokens(activeTokens());
+        const from = findByName(tokens, fromName);
+        const over = findByName(tokens, overName);
+        if (!from || !over) return;
+
+        const randomAmount = Math.floor(Math.random() * 10000) + 1000;
+        const delta = Math.max(10, over.totalPledged - from.totalPledged + randomAmount);
+        addPledgeRef.current(from.id, delta);
+      }, delay);
+      timers.push(timer);
+    };
+
+    steps.forEach(boost);
+
+    const finishTimer = setTimeout(() => {
+      swapDemoRef.current = true;
+      onFinished?.();
+    }, 6500);
+    timers.push(finishTimer);
+
+    return () => timers.forEach(clearTimeout);
+  }, [addPledgeRef, swapDemoRef, getTokensRef, onFinished]);
+};
+
 export const LeaderboardPage = () => {
-  const { getTokens, getTokenByName, addPledge, launchCampaign } = useStore();
+  const { getTokens, addPledge, launchCampaign } = useStore();
   const [movements, setMovements] = useState({});
   const prevRanksRef = useRef({});
   const swapDemoRef = useRef(false);
   const launchDemoRef = useRef(false);
   const addPledgeRef = useRef(addPledge);
   const launchCampaignRef = useRef(launchCampaign);
+  const getTokensRef = useRef(getTokens);
+  const dropBottomTokens = useCallback(() => {
+    const node = tableRef.current;
+    if (!node) return;
+
+    const rows = Array.from(node.querySelectorAll(".leaderboard-row"));
+    const bottom = rows.slice(5, 9); // позиции 6–9
+    const viewportHeight = window.innerHeight;
+
+    bottom.forEach((element, idx) => {
+      const { top } = element.getBoundingClientRect();
+      gsap.set(element, { position: "relative", zIndex: 1000 - idx });
+      gsap.to(element, {
+        y: viewportHeight - top + 100,
+        opacity: 0,
+        duration: 0.8,
+        ease: "power2.in",
+        delay: idx === 0 ? 0.2 : 0.2 + idx * 0.05,
+        onComplete: () => gsap.set(element, { visibility: "hidden" }),
+      });
+    });
+  }, []);
   const SCROLL_HIDE_DELAY = 500;
   const tableRef = useRef(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const [isScrollable, setIsScrollable] = useState(false);
   const hideTimerRef = useRef(null);
+  const positionsRef = useRef(new Map());
 
   const syncScrollable = useCallback(() => {
     const node = tableRef.current;
@@ -161,29 +206,66 @@ export const LeaderboardPage = () => {
   const top10Tokens = useMemo(() => selectTopTokens(tokens), [tokens]);
   const navigate = useNavigate();
   
-  useMovementTracking(top10Tokens, movements, setMovements, prevRanksRef);
-  useSwapDemo(tokens, addPledge, swapDemoRef);
+  useEffect(() => { getTokensRef.current = getTokens; }, [getTokens]);
 
-  const leader = top10Tokens[0];
-  useTopLaunchDemo(leader, addPledgeRef, launchCampaignRef, launchDemoRef, setMovements);
+  useMovementTracking(top10Tokens, movements, setMovements, prevRanksRef);
+  useScriptedSwapDemo(getTokensRef, addPledgeRef, swapDemoRef, dropBottomTokens);
+
+//   const leader = top10Tokens[0];
+//   useTopLaunchDemo(leader, addPledgeRef, launchCampaignRef, launchDemoRef, setMovements);
+  
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const rows = Array.from(table.querySelectorAll(".leaderboard-row"));
+    const prev = positionsRef.current;
+    const next = new Map();
+
+    rows.forEach(row => next.set(row.dataset.tokenId, row.getBoundingClientRect()));
+
+    const ctx = gsap.context(() => {
+      rows.forEach(row => {
+        const id = row.dataset.tokenId;
+        const prevBox = prev.get(id);
+        const nextBox = next.get(id);
+        if (!prevBox || !nextBox) return;
+
+        const dx = prevBox.left - nextBox.left;
+        const dy = prevBox.top - nextBox.top;
+        if (dx || dy) {
+          gsap.fromTo(
+            row,
+            { x: dx, y: dy, opacity: 0.9 },
+            { x: 0, y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }
+          );
+        }
+      });
+    }, table);
+
+    positionsRef.current = next;
+    return () => ctx.revert();
+  }, [top10Tokens]);
+
   const renderLeaderboard = () => {
     return top10Tokens.map((token, index) => {
       const rankClass = index < 5 ? "leaderboard-rank--gold" : "leaderboard-rank";
       return (
         <div
-        key={token.id}
-        className={buildRowClass(movements, token.id)}
-        onClick={() => navigate(`/token/${token.id}`)}
-      >
-        <div className={rankClass}>#{index + 1}</div>
-        <div className="leaderboard-image">
-          <img src={token.image} alt={token.name} />
+          key={token.id}
+          data-token-id={token.id}
+          className={buildRowClass(movements, token.id)}
+          onClick={() => navigate(`/token/${token.id}`)}
+        >
+          <div className={rankClass}>#{index + 1}</div>
+          <div className="leaderboard-image">
+            <img src={token.image} alt={token.name} />
+          </div>
+          <div className="leaderboard-ticker">{token.ticker}</div>
+          <div className="leaderboard-pledged">
+            {formatNumber(token.totalPledged)} stFUEL
+          </div>
         </div>
-        <div className="leaderboard-ticker">{token.ticker}</div>
-        <div className="leaderboard-pledged">
-          {formatNumber(token.totalPledged)} stFUEL
-        </div>
-      </div>
       )
     });
   }

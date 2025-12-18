@@ -4,6 +4,8 @@ import { useStore } from '../store/StoreProvider.jsx'
 import { sendMessageToAI } from '../services/ai-service';
 import '../css/pages/chat.css';
 
+import WAIFU_VIDEO from '../assets/tokens/WAIFU4.mp4'
+
 const MESSAGE_COST_MIN = 10;
 const MESSAGE_COST_MAX = 20;
 
@@ -29,6 +31,9 @@ export function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const lastUserMessage = [...messages].reverse().find(m => m.isUser);
+  const [visibleUserBubble, setVisibleUserBubble] = useState(null);
+  const bubbleTimerRef = useRef(null);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -41,6 +46,23 @@ export function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  // Показываем последнее сообщение юзера на видео на пару секунд
+  useEffect(() => {
+    if (!lastUserMessage) return;
+    setVisibleUserBubble(lastUserMessage);
+    if (bubbleTimerRef.current) {
+      clearTimeout(bubbleTimerRef.current);
+    }
+    bubbleTimerRef.current = setTimeout(() => {
+      setVisibleUserBubble(null);
+    }, 1500);
+    return () => {
+      if (bubbleTimerRef.current) {
+        clearTimeout(bubbleTimerRef.current);
+      }
+    };
+  }, [lastUserMessage?.id]);
 
   // Фокус на input при загрузке
   useEffect(() => {
@@ -156,83 +178,64 @@ export function ChatPage() {
 
   return (
     <div className="chat-page">
-      {/* Header with token info */}
-      <div className="chat-header">
-        <div className="chat-token-info">
-          <div className="chat-token-info-left">
-            <img 
-              src={token?.image || 'assets/logo.png'} 
-              alt={token?.ticker || 'Token'} 
-              className="chat-token-image"
-            />
-            <div className="chat-token-details">
-              <h3>{token?.ticker || 'Unknown Token'}</h3>
-            </div>
-          </div>
-          <div className="chat-token-info-right">
-            <div className="chat-token-balance">
-              <span className="chat-token-balance-label">Balance: </span>
-              <span className="chat-token-balance-value">{balance}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat window */}
-      <div className="chat-window">
-        <div className="chat-messages" id="chat-messages">
-          {messages.map((message) => (
-            <div 
-              key={message.id}
-              className={`message ${message.isUser ? 'user-message' : 'bot-message'} ${message.isError ? 'error-message' : ''}`}
-            >
-              <div className="message-content">{message.content}</div>
-              <div className="message-time">{message.time}</div>
-            </div>
-          ))}
-          
-          {/* Typing indicator */}
-          {isTyping && (
-            <div className="message bot-message typing-message">
-              <div className="message-content">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+      {/* Hero с видео и оверлейным UI */}
+      <div className="chat-hero">
+        <video
+          className="chat-hero-video"
+          src={WAIFU_VIDEO}
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster={token?.image}
+        />
+        <div className="chat-hero-overlay">
+          <div className="chat-header">
+            <div className="chat-token-info">
+              <div className="chat-token-info-left">
+                <img 
+                  src={token?.image || 'assets/logo.png'} 
+                  alt={token?.ticker || 'Token'} 
+                  className="chat-token-image"
+                />
+                <div className="chat-token-details">
+                  <h3>{token?.ticker || 'Unknown Token'}</h3>
+                </div>
+              </div>
+              <div className="chat-token-info-right">
+                <div className="chat-token-balance">
+                  <span className="chat-token-balance-label">Balance: </span>
+                  <span className="chat-token-balance-value">{balance}</span>
                 </div>
               </div>
             </div>
+          </div>
+          <div className="chat-hero-gradient" />
+          {visibleUserBubble && (
+            <div className="chat-bubble-user">
+              <div className="chat-bubble-text">{visibleUserBubble.content}</div>
+            </div>
           )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Input area */}
-      <div className="chat-input">
-        <div className="input-container">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="message-input"
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !inputText.trim()}
-            className="send-button"
-          >
-            <span className="send-text" style={{ display: isLoading ? 'none' : 'inline' }}>
-              Send
-            </span>
-            <span className="send-loading" style={{ display: isLoading ? 'inline' : 'none' }}>
-              ...
-            </span>
-          </button>
+          <div className="chat-input-overlay">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me anything..."
+              className="message-input overlay"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !inputText.trim()}
+              className="send-button overlay"
+            >
+              <span style={{ display: isLoading ? 'none' : 'inline' }}>Send</span>
+              <span style={{ display: isLoading ? 'inline' : 'none' }}>...</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

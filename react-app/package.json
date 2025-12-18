@@ -17,6 +17,7 @@
     "@wagmi/connectors": "^5.11.2",
     "@wagmi/core": "^2.13.4",
     "fuels": "^0.101.1",
+    "gsap": "^3.12.5",
     "lightweight-charts": "^5.0.9",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

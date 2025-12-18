@@ -17,6 +17,7 @@ export function TokenCard({
   creator,
   isBoosted,
   glow = false,
+  showBondingCurve = true,
   onSwipeLeft,
   onSwipeRight,
   controlsRef = null,
@@ -334,7 +335,7 @@ export function TokenCard({
           </div>
         </div>
         <div className="token-card-footer">
-          <BondingCurve progress={progress} glow={glow} />
+          {showBondingCurve && <BondingCurve progress={progress} glow={glow} />}
         </div>
       </div>
     </div>

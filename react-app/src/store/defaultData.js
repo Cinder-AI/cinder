@@ -12,7 +12,16 @@ import TRUMP from '../assets/tokens/TRUMP.jpg'
 import ELON_VIDEO from '../assets/tokens/ELON.mp4'
 import TRUMP_VIDEO from '../assets/tokens/TRUMP.mp4'
 import WAIFU_VIDEO from '../assets/WAIFU.mp4'
+import ISAGI_VIDEO from '../assets/tokens/ISAGI2.mp4'
+import ISAGI from '../assets/tokens/ISAGI3.jpg'
+import CIN from '../assets/CINDER_RED.png'
+import CIN_VIDEO from '../assets/logo.mp4'
 
+const duplicateTokens = (source) =>
+  source.map(token => ({
+    ...token,
+    media: token.media ? { ...token.media } : undefined,
+  }))
 export function createDefaultState() {
   const CAMPAIGN_TARGET = 1000000; // 1M stFUEL target for launch
   
@@ -36,6 +45,29 @@ export function createDefaultState() {
       timeAgo: 'genesis', 
       isSystemToken: true 
     },
+    {
+      id: 16,
+      name: "CIN",
+      ticker: "$CIN",
+      description: "Cinder",
+      image: CIN,
+      media: {
+        type: 'video',
+        src: CIN_VIDEO,
+        poster: CIN
+      },
+      creator: 'Cinder',
+      isSystemToken: false,
+      status: 'active',
+      showBondingCurve: false,
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 0,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 0,
+      timeAgo: '24hr ago',
+    },
     { 
       id: 4, 
       name: 'ELON', 
@@ -52,10 +84,10 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000004',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 415000,
+      totalPledged: 615000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 41.5,
+      progress: 61.5,
       timeAgo: '2m ago',
       price: 0.00000558,
       isBoosted: false
@@ -77,8 +109,8 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x000000000000000000000000000000000000000000000000000000000000000E',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 0,
-      progress: 0,
+      totalPledged: 680000,
+      progress: 68,
       timeAgo: '2hr ago',
     },
     { 
@@ -97,10 +129,10 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000003',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 790000,
+      totalPledged: 540000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 79,
+      progress: 54,
       timeAgo: '50m ago',
       price: 0.00000558,
       marketCap: 17300
@@ -116,10 +148,10 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000008',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 550000,
+      totalPledged: 350000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 55,
+      progress: 35,
       timeAgo: '2hr ago'
     },
     { 
@@ -167,10 +199,520 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x0000000000000000000000000000000000000000000000000000000000000009',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 650000,
+      totalPledged: 550000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 65,
+      progress: 55,
+      timeAgo: '3hr ago'
+    },
+    {
+      id: 10,
+      name: 'AI16Z',
+      ticker: '$AI16Z',
+      description: 'AI16Z',
+      image: AI16Z,
+      creator: 'ai16z',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x000000000000000000000000000000000000000000000000000000000000000A',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 320000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 32,
+      timeAgo: '6hr ago'
+    },
+    {
+      id: 11,
+      name: 'BERT',
+      ticker: '$BERT',
+      description: 'BERT',
+      image: BERT,
+      creator: 'bertdev',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x000000000000000000000000000000000000000000000000000000000000000B',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 350000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 35,
+      timeAgo: '1d ago'
+    },
+    {
+      id: 12,
+      name: 'BULLA',
+      ticker: '$BULLA',
+      description: 'Hasbullah',
+      image: BULLA,
+      creator: 'bullrun',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x000000000000000000000000000000000000000000000000000000000000000C',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 220000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 2,
+      timeAgo: '30m ago'
+    },
+    {
+      id: 13,
+      name: 'DOGE',
+      ticker: '$DOGE',
+      description: 'Doge',
+      image: DOGE,
+      creator: 'dogearmy',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x000000000000000000000000000000000000000000000000000000000000000D',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 180000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 18,
+      timeAgo: '6hr ago'
+    },
+    {
+      id: 15,
+      name: 'Isagi',
+      ticker: '$ISAGI',
+      description: 'Isagi Yoichi',
+      image: ISAGI,
+      media: {
+        type: 'video',
+        src: ISAGI_VIDEO,
+        poster: ISAGI
+      },
+      creator: 'IsagiYoichi',
+      isSystemToken: false,
+      status: 'active',
+      progress: 0,
+      timeAgo: '2m ago',
+    },
+  ];
+
+  // const tokens = [
+  //   // Системные токены - без кампаний, уже запущены
+  //   { 
+  //     id: 1, 
+  //     name: 'stFUEL', 
+  //     image: 'assets/stFUEL.png', 
+  //     creator: 'system', 
+  //     progress: 100, 
+  //     timeAgo: 'genesis', 
+  //     isSystemToken: true 
+  //   },
+  //   { 
+  //     id: 2, 
+  //     name: 'CIN', 
+  //     image: 'assets/CIN.png', 
+  //     creator: 'system', 
+  //     progress: 100, 
+  //     timeAgo: 'genesis', 
+  //     isSystemToken: true 
+  //   },
+  //   {
+  //     id: 16,
+  //     name: "CIN",
+  //     ticker: "$CIN",
+  //     description: "Cinder",
+  //     image: CIN,
+  //     media: {
+  //       type: 'video',
+  //       src: CIN_VIDEO,
+  //       poster: CIN
+  //     },
+  //     creator: 'Cinder',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     showBondingCurve: false,
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 0,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 0,
+  //     timeAgo: '24hr ago',
+  //   },
+  //   { 
+  //     id: 4, 
+  //     name: 'ELON', 
+  //     ticker: '$ELON', 
+  //     description: 'Elon Musk', 
+  //     image: ELON, 
+  //     media: {
+  //       type: 'video',
+  //       src: ELON_VIDEO,
+  //       poster: ELON
+  //     },
+  //     creator: 'Zupp',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000004',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 415000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 41.5,
+  //     timeAgo: '2m ago',
+  //     price: 0.00000558,
+  //     isBoosted: false
+  //   },
+
+  //   {
+  //     id: 14,
+  //     name: 'TRUMP',
+  //     ticker: '$TRUMP',
+  //     description: 'Donald Trump',
+  //     image: TRUMP,
+  //     media: {
+  //       type: 'video',
+  //       src: TRUMP_VIDEO,
+  //       poster: TRUMP
+  //     },
+  //     creator: 'MemeForge',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x000000000000000000000000000000000000000000000000000000000000000E',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 680000,
+  //     progress: 68,
+  //     timeAgo: '2hr ago',
+  //   },
+  //   { 
+  //     id: 3,
+  //     name: 'WaiFU',
+  //     ticker: '$WaiFU',
+  //     description: 'Digital AI Companion',
+  //     image: WAIFU,
+  //     media: {
+  //       type: 'video',
+  //       src: WAIFU_VIDEO,
+  //       poster: WAIFU
+  //     },
+  //     creator: 'KawaiiLaunch',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000003',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 790000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 79,
+  //     timeAgo: '50m ago',
+  //     price: 0.00000558,
+  //     marketCap: 17300
+  //   },
+  //   {
+  //     id: 8,
+  //     name: 'PEPE',
+  //     ticker: '$PEPE',
+  //     description: 'PEPE',
+  //     image: PEPE,
+  //     creator: 'pepekek',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000008',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 550000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 55,
+  //     timeAgo: '2hr ago'
+  //   },
+  //   { 
+  //     id: 7, 
+  //     name: 'GIGA', 
+  //     ticker: '$GIGA', 
+  //     description: 'Gigachad', 
+  //     image: NICK, 
+  //     creator: 'gigachad',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000007',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 300000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 30,
+  //     timeAgo: '45m ago'
+  //   },
+  //   { 
+  //     id: 6, 
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000006',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     name: 'Mr. Jim', 
+  //     ticker: '$MRJIM', 
+  //     description: 'Mr. Jim', 
+  //     image: MRJIM, 
+  //     creator: 'jimhodler',
+  //     progress: 20,
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     totalPledged: 200000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     timeAgo: '2m ago'
+  //   },
+  //   {
+  //     id: 9,
+  //     name: 'Pengu',
+  //     ticker: '$PENGU',
+  //     description: 'Pudgy Penguins',
+  //     image: PENGU,
+  //     creator: 'penguking',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x0000000000000000000000000000000000000000000000000000000000000009',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 650000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 65,
+  //     timeAgo: '3hr ago'
+  //   },
+  //   {
+  //     id: 10,
+  //     name: 'AI16Z',
+  //     ticker: '$AI16Z',
+  //     description: 'AI16Z',
+  //     image: AI16Z,
+  //     creator: 'ai16z',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x000000000000000000000000000000000000000000000000000000000000000A',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 420000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 42,
+  //     timeAgo: '6hr ago'
+  //   },
+  //   {
+  //     id: 11,
+  //     name: 'BERT',
+  //     ticker: '$BERT',
+  //     description: 'BERT',
+  //     image: BERT,
+  //     creator: 'bertdev',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x000000000000000000000000000000000000000000000000000000000000000B',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 350000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 35,
+  //     timeAgo: '1d ago'
+  //   },
+  //   {
+  //     id: 12,
+  //     name: 'BULLA',
+  //     ticker: '$BULLA',
+  //     description: 'Hasbullah',
+  //     image: BULLA,
+  //     creator: 'bullrun',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x000000000000000000000000000000000000000000000000000000000000000C',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 220000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 2,
+  //     timeAgo: '30m ago'
+  //   },
+  //   {
+  //     id: 13,
+  //     name: 'DOGE',
+  //     ticker: '$DOGE',
+  //     description: 'Doge',
+  //     image: DOGE,
+  //     creator: 'dogearmy',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     assetId: '0x000000000000000000000000000000000000000000000000000000000000000D',
+  //     subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  //     totalPledged: 180000,
+  //     totalSupply: 0,
+  //     target: CAMPAIGN_TARGET,
+  //     progress: 18,
+  //     timeAgo: '6hr ago'
+  //   },
+  //   {
+  //     id: 15,
+  //     name: 'Isagi',
+  //     ticker: '$ISAGI',
+  //     description: 'Isagi Yoichi',
+  //     image: ISAGI,
+  //     media: {
+  //       type: 'video',
+  //       src: ISAGI_VIDEO,
+  //       poster: ISAGI
+  //     },
+  //     creator: 'IsagiYoichi',
+  //     isSystemToken: false,
+  //     status: 'active',
+  //     progress: 0,
+  //     timeAgo: '2m ago',
+  //   },
+  // ];
+  
+  const leaderboardTokens = [
+    // Системные токены - без кампаний, уже запущены
+    { 
+      id: 1, 
+      name: 'stFUEL', 
+      image: 'assets/stFUEL.png', 
+      creator: 'system', 
+      progress: 100, 
+      timeAgo: 'genesis', 
+      isSystemToken: true 
+    },
+    { 
+      id: 2, 
+      name: 'CIN', 
+      image: 'assets/CIN.png', 
+      creator: 'system', 
+      progress: 100, 
+      timeAgo: 'genesis', 
+      isSystemToken: true 
+    },
+    { 
+      id: 4, 
+      name: 'ELON', 
+      ticker: '$ELON', 
+      description: 'Elon Musk', 
+      image: ELON, 
+      media: {
+        type: 'video',
+        src: ELON_VIDEO,
+        poster: ELON
+      },
+      creator: 'Zupp',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000004',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 675000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 67.5,
+      timeAgo: '2m ago',
+      price: 0.00000558,
+      isBoosted: false
+    },
+    {
+      id: 14,
+      name: 'TRUMP',
+      ticker: '$TRUMP',
+      description: 'Donald Trump',
+      image: TRUMP,
+      media: {
+        type: 'video',
+        src: TRUMP_VIDEO,
+        poster: TRUMP
+      },
+      creator: 'MemeForge',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x000000000000000000000000000000000000000000000000000000000000000E',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 700000,
+      progress: 70,
+      timeAgo: '2hr ago',
+    },
+    { 
+      id: 3,
+      name: 'WaiFU',
+      ticker: '$WaiFU',
+      description: 'Digital AI Companion',
+      image: WAIFU,
+      media: {
+        type: 'video',
+        src: WAIFU_VIDEO,
+        poster: WAIFU
+      },
+      creator: 'KawaiiLaunch',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000003',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 540000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 54,
+      timeAgo: '50m ago',
+      price: 0.00000558,
+      marketCap: 17300
+    },
+    {
+      id: 8,
+      name: 'PEPE',
+      ticker: '$PEPE',
+      description: 'PEPE',
+      image: PEPE,
+      creator: 'pepekek',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000008',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 620000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 62,
+      timeAgo: '2hr ago'
+    },
+    { 
+      id: 7, 
+      name: 'GIGA', 
+      ticker: '$GIGA', 
+      description: 'Gigachad', 
+      image: NICK, 
+      creator: 'gigachad',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000007',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 300000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 30,
+      timeAgo: '45m ago'
+    },
+    { 
+      id: 6, 
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000006',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      name: 'Mr. Jim', 
+      ticker: '$MRJIM', 
+      description: 'Mr. Jim', 
+      image: MRJIM, 
+      creator: 'jimhodler',
+      progress: 20,
+      isSystemToken: false,
+      status: 'active',
+      totalPledged: 200000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      timeAgo: '2m ago'
+    },
+    {
+      id: 9,
+      name: 'Pengu',
+      ticker: '$PENGU',
+      description: 'Pudgy Penguins',
+      image: PENGU,
+      creator: 'penguking',
+      isSystemToken: false,
+      status: 'active',
+      assetId: '0x0000000000000000000000000000000000000000000000000000000000000009',
+      subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      totalPledged: 440000,
+      totalSupply: 0,
+      target: CAMPAIGN_TARGET,
+      progress: 44,
       timeAgo: '3hr ago'
     },
     {
@@ -218,10 +760,10 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x000000000000000000000000000000000000000000000000000000000000000C',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 720000,
+      totalPledged: 120000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 92,
+      progress: 12,
       timeAgo: '30m ago'
     },
     {
@@ -235,14 +777,30 @@ export function createDefaultState() {
       status: 'active',
       assetId: '0x000000000000000000000000000000000000000000000000000000000000000D',
       subId: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      totalPledged: 180000,
+      totalPledged: 430000,
       totalSupply: 0,
       target: CAMPAIGN_TARGET,
-      progress: 18,
+      progress: 43,
       timeAgo: '6hr ago'
-    }
+    },
+    {
+      id: 15,
+      name: 'Isagi',
+      ticker: '$ISAGI',
+      description: 'Isagi Yoichi',
+      image: ISAGI,
+      media: {
+        type: 'video',
+        src: ISAGI_VIDEO,
+        poster: ISAGI
+      },
+      creator: 'IsagiYoichi',
+      isSystemToken: false,
+      status: 'active',
+      progress: 0,
+      timeAgo: '2m ago',
+    },
   ];
-  console.log(tokens);
 
   const userHoldings = new Map([
     [1, { amount: 250000, value: 250.0, canSell: false }],
@@ -255,7 +813,7 @@ export function createDefaultState() {
 
   const nextTokenId = calculateNextTokenId(tokens);
 
-  return { tokens, userHoldings, user, nextTokenId };
+  return { tokens, leaderboardTokens, userHoldings, user, nextTokenId };
 }
 
 export function calculateNextTokenId(tokens) {

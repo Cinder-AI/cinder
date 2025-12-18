@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState, useRef} from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useWallet } from '@fuels/react'
@@ -60,8 +60,6 @@ export function DiscoveryPage() {
 
   const deadToken = getTokenByName('BERT');
   const livingToken = getTokenByName('WaiFU');
-
-
 
   const getTotalAssets = async () => {
     try {

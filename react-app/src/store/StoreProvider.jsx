@@ -11,9 +11,8 @@ function reviveState(raw) {
   if (data && data.userHoldings && typeof data.userHoldings === 'object' && !(data.userHoldings instanceof Map)) {
     data.userHoldings = new Map(Object.entries(data.userHoldings).map(([k, v]) => [Number(k), v]))
   }
-  if (!data.nextTokenId) {
-    data.nextTokenId = calculateNextTokenId(data.tokens || [])
-  }
+  if (!data.nextTokenId) data.nextTokenId = calculateNextTokenId(data.tokens || [])
+  if (!data.leaderboardTokens) data.leaderboardTokens = createDefaultState().leaderboardTokens
   return data
 }
 
@@ -31,7 +30,21 @@ const ACTIONS = {
   CLEAR_DATA: 'CLEAR_DATA',
   ADD_PLEDGE: 'ADD_PLEDGE',
   LAUNCH_CAMPAIGN: 'LAUNCH_CAMPAIGN',
+  ADD_PLEDGE_LEADERBOARD: 'ADD_PLEDGE_LEADERBOARD',
+  LAUNCH_CAMPAIGN_LEADERBOARD: 'LAUNCH_CAMPAIGN_LEADERBOARD',
+  RESET_LEADERBOARD: 'RESET_LEADERBOARD',
 }
+
+const applyPledge = (tokens, tokenId, amount) =>
+  tokens.map(token => {
+    if (token.id !== tokenId) return token
+    const totalPledged = token.totalPledged + amount
+    const progress = Math.round((totalPledged / token.target) * 100)
+    return { ...token, totalPledged, progress }
+  })
+
+const applyLaunch = (tokens, tokenId) =>
+  tokens.map(token => (token.id === tokenId ? { ...token, status: 'launched' } : token))
 
 function reducer(state, action) {
   switch (action.type) {
@@ -73,34 +86,22 @@ function reducer(state, action) {
       return { ...state, user: { ...state.user, balance: action.payload.balance } }
     case ACTIONS.ADD_PLEDGE: {
       const { tokenId, amount } = action.payload
-      console.log("adding pledge", tokenId, amount);
-      const updatedTokens = state.tokens.map(token => {
-        console.log("token", token);
-        if (token.id === tokenId) {
-          console.log("token found", token);
-          const newTotalPledged = token.totalPledged + amount;
-          console.log("newTotalPledged", newTotalPledged);
-          const newProgress = Math.round((newTotalPledged / token.target) * 100);
-          console.log("newProgress", newProgress);
-          return {
-            ...token,
-            totalPledged: newTotalPledged,
-            progress: newProgress
-          }
-        }
-        return token
-      })
-      return { ...state, tokens: updatedTokens }
+      return { ...state, tokens: applyPledge(state.tokens, tokenId, amount) }
     }
     case ACTIONS.LAUNCH_CAMPAIGN: {
       const { tokenId } = action.payload
-      const updatedTokens = state.tokens.map(token => {
-        if (token.id === tokenId) {
-          return { ...token, status: 'launched' }
-        }
-        return token
-      })
-      return { ...state, tokens: updatedTokens }
+      return { ...state, tokens: applyLaunch(state.tokens, tokenId) }
+    }
+    case ACTIONS.ADD_PLEDGE_LEADERBOARD: {
+      const { tokenId, amount } = action.payload
+      return { ...state, leaderboardTokens: applyPledge(state.leaderboardTokens, tokenId, amount) }
+    }
+    case ACTIONS.LAUNCH_CAMPAIGN_LEADERBOARD: {
+      const { tokenId } = action.payload
+      return { ...state, leaderboardTokens: applyLaunch(state.leaderboardTokens, tokenId) }
+    }
+    case ACTIONS.RESET_LEADERBOARD: {
+      return { ...state, leaderboardTokens: createDefaultState().leaderboardTokens }
     }
     case ACTIONS.CLEAR_DATA:
       return createDefaultState()
@@ -127,6 +128,7 @@ export function StoreProvider({ children }) {
     getTokenByName: (name) => state.tokens.find(t => t.name === name),
     
     getTokens: () => state.tokens,
+    getLeaderboardTokens: () => state.leaderboardTokens,
     getUserHoldings: () => {
       const list = []
       for (const [tokenId, holding] of state.userHoldings) {
@@ -142,7 +144,11 @@ export function StoreProvider({ children }) {
     updateUserBalance: (balance) => dispatch({ type: ACTIONS.UPDATE_BALANCE, payload: { balance } }),
     addPledge: (tokenId, amount) => dispatch({ type: ACTIONS.ADD_PLEDGE, payload: { tokenId, amount } }),
     launchCampaign: (tokenId) => dispatch({ type: ACTIONS.LAUNCH_CAMPAIGN, payload: { tokenId } }),
+    addLeaderboardPledge: (tokenId, amount) => dispatch({ type: ACTIONS.ADD_PLEDGE_LEADERBOARD, payload: { tokenId, amount } }),
+    launchLeaderboardCampaign: (tokenId) => dispatch({ type: ACTIONS.LAUNCH_CAMPAIGN_LEADERBOARD, payload: { tokenId } }),
+    resetLeaderboardTokens: () => dispatch({ type: ACTIONS.RESET_LEADERBOARD }),
     clearData: () => dispatch({ type: ACTIONS.CLEAR_DATA }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [state])
 
   return (
