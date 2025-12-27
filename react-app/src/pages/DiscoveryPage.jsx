@@ -10,7 +10,7 @@ import { Button } from '../components/Button.jsx'
 import { Match } from '../components/Match.tsx'
 import { Airdrop } from '../components/Airdrop.tsx'
 
-import { CONTRACTS } from '../config/contracts.ts'
+import { getContracts } from '../config/contracts.ts'
 import { Cinder } from '../sway-api/contracts/Cinder.ts'
 import { Launchpad } from '../sway-api/contracts/Launchpad.ts'
 import { Amm } from '../sway-api/contracts/Amm.ts'
@@ -114,14 +114,24 @@ export function DiscoveryPage() {
   }, [tokens.length]);
 
   useEffect(() => {
-    const contract = new Cinder(CONTRACTS.CINDER, wallet);
-    setContract(contract);
+    if (!wallet) return;
 
-    const launchpadContract = new Launchpad(CONTRACTS.LAUNCHPAD, wallet);
-    setLaunchpadContract(launchpadContract);
+    let cancelled = false;
 
-    const ammContract = new Amm(CONTRACTS.AMM, wallet);
-    setAmmContract(ammContract);
+    (async () => {
+      const ids = await getContracts();
+      if (cancelled) return;
+
+      setContract(new Cinder(ids.CINDER, wallet));
+      setLaunchpadContract(new Launchpad(ids.LAUNCHPAD, wallet));
+      setAmmContract(new Amm(ids.AMM, wallet));
+    })().catch((e) => {
+      console.error('Failed to init contracts:', e);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [wallet]);
 
   useEffect(() => {

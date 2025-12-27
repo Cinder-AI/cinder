@@ -5,7 +5,7 @@ import { useWallet } from '@fuels/react';
 import { Cinder } from '../sway-api/contracts/Cinder';
 import { Launchpad, TokenInfoOutput } from '../sway-api/contracts/Launchpad';
 import { fuelGraphQL } from '../services/fuelGraphQL';
-import { CONTRACTS } from '../config/contracts';
+import { getContracts } from '../config/contracts';
 
 interface TokenMetadata {
   name: string;
@@ -38,8 +38,9 @@ export const useBalance = () => {
 
     const init = async () => {
       try {
-        const cinderContract = new Cinder(CONTRACTS.CINDER, wallet);
-        const launchpadContract = new Launchpad(CONTRACTS.LAUNCHPAD, wallet);
+        const ids = await getContracts();
+        const cinderContract = new Cinder(ids.CINDER, wallet);
+        const launchpadContract = new Launchpad(ids.LAUNCHPAD, wallet);
 
         const [assetsRes, cinderAssetRes] = await Promise.all([
           launchpadContract.functions.get_assets().get(),
@@ -83,7 +84,8 @@ export const useBalance = () => {
       console.log('Raw balances from GraphQL:', rawBalances);
 
       const enriched: EnrichedBalance[] = [];
-      const cinderContract = new Cinder(CONTRACTS.CINDER, wallet);
+      const ids = await getContracts();
+      const cinderContract = new Cinder(ids.CINDER, wallet);
 
       for (const balance of rawBalances) {
         const { assetId, amount } = balance;
