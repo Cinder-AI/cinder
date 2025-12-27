@@ -10,8 +10,10 @@ console.log(`Environment: ${environment}`);
 console.log(`Port: ${PORT}`);
 export const localProviderUrl = `http://127.0.0.1:${PORT}/v1/graphql`;
 export const testnetProviderUrl = "https://testnet.fuel.network/v1/graphql";
-export const providerUrl = isLocal ? localProviderUrl : testnetProviderUrl;
+export const mainnetProviderUrl = "https://mainnet.fuel.network/v1/graphql";
+export const providerUrl = isLocal ? localProviderUrl : (isMainnet ? mainnetProviderUrl : testnetProviderUrl);
 
 export const localChainId = 0;
 export const testnetChainId = 0;
-export const providerChainId = isLocal ? localChainId : testnetChainId;
+export const mainnetChainId = 0;
+export const providerChainId = isLocal ? localChainId : (isMainnet ? mainnetChainId : testnetChainId);

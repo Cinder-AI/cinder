@@ -1,6 +1,8 @@
 // react-app/src/services/fuelGraphQL.ts
 
-const FUEL_GRAPHQL_ENDPOINT = 'https://testnet.fuel.network/v1/graphql';
+import { providerUrl } from '../lib.tsx';
+
+const FUEL_GRAPHQL_ENDPOINT = providerUrl;
 
 interface Balance {
   amount: string;
