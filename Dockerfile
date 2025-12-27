@@ -2,9 +2,12 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY react-app/package*.json .
-RUN npm install -g npm@11.6.3
-RUN npm install
+# Use pnpm (repo already has pnpm-lock.yaml)
+RUN corepack enable
+
+COPY react-app/package.json react-app/pnpm-lock.yaml ./
+RUN pnpm install --no-frozen-lockfile
+
 COPY react-app/ .
 
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "dev"]
