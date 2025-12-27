@@ -5,14 +5,11 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.101.3
-  Forc version: 0.69.1
-  Fuel-Core version: 0.45.1
+  Fuels version: 0.102.0
 */
 
-export { Launchpad } from './Launchpad';
-export { LaunchpadFactory } from './LaunchpadFactory';
-export { Cinder } from './Cinder';
-export { CinderFactory } from './CinderFactory';
+export * from './common';
+
 export { Amm } from './Amm';
-export { AmmFactory } from './AmmFactory';
+export { Cinder } from './Cinder';
+export { Launchpad } from './Launchpad';
