@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "amm",
+    "cinder",
+    "launchpad",
+]
+
+[workspace.dependencies]
+fuels = { version = "0.76", features = ["fuel-core-lib"] }
+tokio = { version = "1", features = ["rt", "macros"] }

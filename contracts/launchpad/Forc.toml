@@ -1,0 +1,14 @@
+[project]
+authors = ["pdpvs"]
+entry = "main.sw"
+license = "Apache-2.0"
+name = "launchpad"
+
+[dependencies]
+src20 = "0.8.1"
+src3 = "0.8.1"
+src7 = "0.8.1"
+types = { path = "../libs/types" }
+utils = { path = "../libs/utils" }
+
+# sway_libs = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.25.2" }

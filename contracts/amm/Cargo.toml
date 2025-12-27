@@ -1,0 +1,15 @@
+[package]
+name = "amm-tests"
+version = "0.1.0"
+edition = "2021"
+
+[[test]]
+name = "harness"
+path = "tests/harness.rs"
+harness = true
+
+[dependencies]
+fuels = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
