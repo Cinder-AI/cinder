@@ -15,10 +15,36 @@ use std::{
     identity::Identity,
 };
 
+const BASIS_POINTS_DENOMINATOR: u64 = 10000;
+const LP_FEE_BPS: u64 = 30;
+const RAMP_MAX_STEPS_U64: u64 = 3;
+
+pub struct RampConfig {
+    pub base_asset: AssetId,
+    pub cumulative_base_volume: u64,
+    pub x: u64,
+    pub min_base_trade: u64,
+    pub steps_consumed: u8,
+}
+
+fn steps_ready(cfg: &RampConfig) -> u8 {
+    if cfg.x == 0 {
+        0
+    } else {
+        let raw = cfg.cumulative_base_volume / cfg.x;
+        if raw >= RAMP_MAX_STEPS_U64 {
+            3
+        } else {
+            u8::try_from(raw).unwrap()
+        }
+    }
+}
+
 storage {
     pools: StorageMap<PoolId, Pool> = StorageMap {},
     owner: Option<Identity> = None,
     initialized: bool = false,
+    ramps: StorageMap<PoolId, RampConfig> = StorageMap {},
 }
 
 use types::{amm::AMM, structs::{PoolId, Pool}};
@@ -163,6 +189,24 @@ impl AMM for Contract {
         require(amount_out > 0, "Zero output");
         require(amount_out <= reserve_out, "Insufficient liquidity");
 
+        // Ramp volume accounting (if configured for this pool)
+        if let Some(cfg) = storage.ramps.get(pool_id).try_read() {
+            let mut cfg = cfg;
+            let base_flow = if token_in == cfg.base_asset {
+                amount_in
+            } else if token_out == cfg.base_asset {
+                amount_out
+            } else {
+                0
+            };
+            if base_flow >= cfg.min_base_trade {
+                let next = cfg.cumulative_base_volume + base_flow;
+                require(next >= cfg.cumulative_base_volume, "Overflow cumulative volume");
+                cfg.cumulative_base_volume = next;
+                storage.ramps.insert(pool_id, cfg);
+            }
+        }
+
         // Обновление резервов
         if token_in == pool_id.0 {
             pool_data.reserve_0 = reserve_in + amount_in;
@@ -178,6 +222,68 @@ impl AMM for Contract {
         transfer(to, token_out, amount_out);
         
         amount_out
+    }
+
+    #[storage(read)]
+    fn get_pool_reserves(pool_id: PoolId) -> (u64, u64) {
+        let p = require_pool(pool_id);
+        (p.reserve_0, p.reserve_1)
+    }
+
+    #[storage(read)]
+    fn get_ramp_state(pool_id: PoolId) -> (AssetId, u64, u64, u64, u8, u8) {
+        if let Some(cfg) = storage.ramps.get(pool_id).try_read() {
+            let ready = steps_ready(&cfg);
+            (
+                cfg.base_asset,
+                cfg.cumulative_base_volume,
+                cfg.x,
+                cfg.min_base_trade,
+                ready,
+                cfg.steps_consumed,
+            )
+        } else {
+            (pool_id.0, 0, 0, 0, 0, 0)
+        }
+    }
+
+    #[storage(read, write)]
+    fn configure_ramp(pool_id: PoolId, base_asset: AssetId, x: u64, min_base_trade: u64) -> bool {
+        require_only_owner();
+        let _ = require_pool(pool_id);
+        require(storage.ramps.get(pool_id).try_read().is_none(), "Ramp already configured");
+        require(base_asset == pool_id.0 || base_asset == pool_id.1, "base_asset must be in pool");
+        require(x > 0, "x must be > 0");
+
+        storage.ramps.insert(
+            pool_id,
+            RampConfig {
+                base_asset,
+                cumulative_base_volume: 0,
+                x,
+                min_base_trade,
+                steps_consumed: 0,
+            },
+        );
+        true
+    }
+
+    #[storage(read, write)]
+    fn consume_ramp_step(pool_id: PoolId) -> bool {
+        require_only_owner();
+        if let Some(cfg) = storage.ramps.get(pool_id).try_read() {
+            let mut cfg = cfg;
+            let ready = steps_ready(&cfg);
+            if ready > cfg.steps_consumed {
+                cfg.steps_consumed = cfg.steps_consumed + 1;
+                storage.ramps.insert(pool_id, cfg);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -209,9 +315,6 @@ impl AMM for Contract {
 //     /// Минимальная ликвидность при создании пула
 //     MINIMUM_LIQUIDITY: u64 = 1000,
 // }
-
-const BASIS_POINTS_DENOMINATOR: u64 = 10000;
-const LP_FEE_BPS: u64 = 30;
 
 // fn calculate_fee(amount: u64, fee_bps: u64) -> u64 {
 //     let numerator = amount.as_u256() * fee_bps.as_u256();
