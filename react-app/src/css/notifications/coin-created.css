@@ -1,0 +1,122 @@
+/* Coin Created Notification Styles */
+.coin-created-notification {
+    padding: 2rem;
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+    font-family: var(--font-family-heading);
+}
+
+.coin-created-notification-info h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #000;
+    margin: 0 0 0.5rem 0;
+    font-family: var(--font-family-heading);
+}
+
+.coin-created-notification-info p {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 2rem 0;
+    line-height: 1.4;
+}
+
+.created-token-card-wrapper {
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(253, 188, 72, 1), rgba(236, 105, 99, 1));
+    padding: 4px;
+    margin: 1.5rem 0;
+    max-width: 160px;
+    max-height: 220px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.created-token-card {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 12px;
+    padding: 1rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+.created-token-image {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+
+.created-token-card-content {
+    position: relative;
+    z-index: 2;
+}
+
+.created-token-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.created-token-info {
+    flex: 1;
+    text-align: left;
+}
+
+.created-token-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    color: #000;
+}
+
+.created-token-description {
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.coin-created-notification-action-buttons {
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.coin-created-notification-action-buttons button {
+    width: 100%;
+} 
+
+.created-token-ticker {
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 100%;
+    letter-spacing: 0;
+}
+
+.coin-created-notification-alert-description {
+    color: #000;
+}
+
+.coin-created-notification-alert-description h2 {
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 100%;
+    letter-spacing: 0;
+}
+
+.coin-created-notification-alert-description p {
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 20px;
+    color: #000;
+}

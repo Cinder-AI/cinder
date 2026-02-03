@@ -1,0 +1,282 @@
+/* Восстанавливаем modal.css */
+
+/* Bottom Sheet Styles */
+.bottom-sheet-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.bottom-sheet-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.bottom-sheet-backdrop.closing {
+    opacity: 0;
+}
+
+.bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    max-height: 80vh;
+    z-index: 1000;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), max-height 0.3s ease;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.bottom-sheet.open {
+    transform: translateY(0);
+}
+
+.bottom-sheet.closing {
+    transform: translateY(100%);
+}
+
+/* Адаптация для клавиатуры */
+.bottom-sheet.keyboard-open {
+    max-height: 60vh;
+    transform: translateY(-10px);
+}
+
+.bottom-sheet-handle {
+    padding: 12px 0 8px 0;
+    display: flex;
+    justify-content: center;
+    cursor: grab;
+    user-select: none;
+}
+
+.bottom-sheet-handle:active {
+    cursor: grabbing;
+}
+
+.handle-bar {
+    width: 40px;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 2px;
+}
+
+.bottom-sheet-content {
+    position: relative;
+    max-height: calc(80vh - 32px);
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.bottom-sheet.keyboard-open .bottom-sheet-content {
+    max-height: calc(60vh - 32px);
+}
+
+.bottom-sheet-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #f5f5f5;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.bottom-sheet-close:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+/* Auth Form Styles */
+.auth-form {
+    padding: 2rem;
+    padding-top: 3rem;
+    padding-bottom: 2rem;
+}
+
+.bottom-sheet.keyboard-open .auth-form {
+    padding-bottom: 1rem;
+}
+
+.auth-header {
+    text-align: start;
+    margin-bottom: 2rem;
+}
+
+.auth-header h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 38px;
+    color: #253539;
+    margin: 0 0 0.5rem 0;
+    font-family: 'Altone', sans-serif;
+}
+
+.auth-header p {
+    font-size: 1rem;
+    color: #666;
+    font-weight: 400;
+    margin: 0;
+    line-height: 22px;
+}
+
+.auth-body {
+    margin-bottom: 1.5rem;
+}
+
+.input-group {
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease;
+}
+
+.input-group:focus-within {
+    transform: scale(1.02);
+}
+
+.auth-input {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+}
+
+.auth-input:focus {
+    outline: none;
+    border-color: #DF4847;
+    box-shadow: 0 0 0 3px rgba(223, 72, 71, 0.1);
+}
+
+.auth-input::placeholder {
+    color: #999;
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 18px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.auth-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.privacy-text {
+    font-size: 0.75rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* Mobile Responsive */
+@media (max-width: 767px) {
+    .auth-form {
+        padding: 1.5rem;
+        padding-top: 2.5rem;
+    }
+    
+    .auth-header h2 {
+        font-size: 1.25rem;
+    }
+    
+    .auth-input {
+        padding: 14px 16px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+.checkbox-group {
+    margin-bottom: 1.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.auth-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    accent-color: #DF4847;
+    cursor: pointer;
+}
+
+.checkbox-text {
+    user-select: none;
+}
+
+.auth-submit {
+    width: 100% !important;
+    margin-top: 0.5rem;
+}
+
+.verification-inputs {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.verification-digit {
+    width: 48px;
+    height: 56px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s ease;
+    -webkit-appearance: none;
+}
+
+.verification-digit:focus {
+    outline: none;
+    border-color: #DF4847;
+}
+
+.verify-email-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.verify-email-buttons .btn {
+    flex: 1;
+}

@@ -1,0 +1,27 @@
+/* CSS Variables and Theme Colors */
+:root {
+    /* Layout */
+    --app-height: 100dvh;
+    
+    /* Colors */
+    --color-primary: #DF4847;
+    --color-secondary: #253539;
+    --color-accent: #FEBF47;
+    --color-accent-end: #E15049;
+    --color-gradient-primary: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-end) 100%);
+    
+    /* Spacing */
+    --header-padding: 1rem;
+    --button-padding: 18px 36px;
+    --border-radius: 16px;
+    --border-radius-small: 12px;
+    
+    /* Typography */
+    --font-family: 'Altone', sans-serif;
+    --font-family-heading: 'Inter', sans-serif;
+    
+    /* Shadows */
+    --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.2);
+} 

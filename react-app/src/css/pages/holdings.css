@@ -1,0 +1,79 @@
+.holdings-page {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    font-family: var(--font-family-heading) !important;
+
+}
+
+.holdings-table {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+}
+
+.holdings-table-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: 4rem;
+    width: 100%;
+}
+
+.holdings-token-picture {
+    width: 4rem;
+    height: 4rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.holdings-table-row .holdings-token-picture img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.holdings-table-row .holdings-sell-button {
+    height: 50%;
+}
+
+.holdings-token-info {
+    flex: 1;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+
+.holdings-token-name {
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 100%;
+    letter-spacing: 0;
+    margin-bottom: 0;
+    margin-top: 0;
+}
+
+.holdings-token-amount-value {
+}
+
+.holdings-sell-button {
+    flex-shrink: 0;
+    width: auto;
+}
+.holdings-sell-button button {
+    font-family: var(--font-family-heading);
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 141%;
+    letter-spacing: 0;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    background-color: #000000;
+    white-space: nowrap;
+    min-width: 80px;
+}

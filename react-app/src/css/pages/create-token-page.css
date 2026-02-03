@@ -1,0 +1,205 @@
+.create-token-page {
+	padding: 8px 16px;
+	height: 85%;
+	font-family: var(--font-family);
+}
+
+.create-token-page h1 {
+	font-size: 24px;
+	font-weight: 700;
+	color: #000;
+	margin: 0 0 24px 0;
+	font-family: 'Altone', sans-serif;
+	font-weight: 700;
+	font-size: 32px;
+}
+
+/* Image Upload Field */
+.image-upload-field {
+	width: 100%;
+	height: 100px;
+	background-color: rgba(244, 244, 244, 1);
+	border: 2px dashed #B5B5B5;
+	border-radius: 12px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	position: relative;
+	overflow: hidden;
+	margin-bottom: 24px;
+}
+
+.image-upload-field:hover {
+	border-color: #666;
+	background-color: rgba(181, 181, 181, 0.8);
+}
+
+.image-upload-field.dragover {
+	border-color: #333;
+	background-color: rgba(181, 181, 181, 0.6);
+}
+
+.amount-selector-field p {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.amount-selector-field h3 {
+	margin: 0;
+}
+
+.field {
+	width: 100%;
+	height: 100%;
+	margin-bottom: 1rem;
+}
+
+.field input {
+	padding: 16px;
+	width: 100%;
+	height: 60%;
+	border-radius: 16px;
+	border: 1px solid rgba(181, 181, 181, 1);
+	vertical-align: top;
+	text-align: start;
+	font-family: var(--font-family);
+	color: #1a1818;
+}
+
+.field textarea {
+	padding: 16px;
+	width: 100%;
+	height: 60%;
+	border-radius: 16px;
+	border: 1px solid rgba(181, 181, 181, 1);
+	vertical-align: top;
+	text-align: start;
+	font-family: var(--font-family);
+	color: #1a1818;
+}
+
+.field-title {
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+
+.token-name-fields {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+
+}
+
+.token-name-fields .field {
+	width: 48%;
+}
+
+.token-description-field {
+	height: 20%;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+}
+
+.ai-settings-field {
+	height: 20%;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+}
+
+.ai-settings-field input::placeholder {
+	vertical-align: top;
+	text-align: start;
+}
+
+.token-description-field .field,
+.ai-settings-field .field {
+	margin-bottom: 0;
+}
+
+.upload-icon {
+	width: 60px;
+	height: 50px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.7;
+}
+
+.upload-icon img {
+	width: 25px;
+	height: 25px;
+	object-fit: contain;
+	display: block;
+}
+
+.upload-text {
+	font-size: 16px;
+	font-weight: 600;
+	color: #666;
+	text-align: center;
+	margin: 0;
+}
+
+.upload-subtext {
+	font-family: 'Altone', sans-serif;
+	font-size: 14px;
+	color: #888;
+	text-align: center;
+	margin: 4px 0 0 0;
+}
+
+/* Hidden file input */
+.image-upload-field input[type="file"] {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+}
+
+/* Preview image */
+.image-preview {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 10px;
+}
+
+.upload-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}
+
+.image-upload-field.has-image .upload-content {
+	display: none;
+}
+
+.image-upload-field.has-image {
+	border-style: solid;
+	border-color: #ddd;
+}
+
+.create-button-container {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: .5rem;
+}
+
+.create-button-container button {
+	width: 80%;
+	height: 100%;
+	margin-bottom: 1rem;
+}

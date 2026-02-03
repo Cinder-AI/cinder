@@ -1,0 +1,78 @@
+.airdrop-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    z-index: 999;
+}
+
+.airdrop-backdrop--visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.airdrop-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 50%;
+    background: #fff;
+    border-radius: 0 0 2rem 2rem;
+    transform: translateY(-100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+.airdrop-overlay--open {
+    transform: translateY(0);
+}
+
+.airdrop-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* или space-around */
+    gap: 1.5rem;
+    height: auto;        /* снять жёсткое ограничение */
+    min-height: 400px;   /* если нужна минимальная высота */
+    padding: 1.5rem;
+    margin: auto 0;
+}
+
+
+.airdrop-overlay--open .airdrop-content {
+    transform: translateY(0);
+}
+
+.airdrop-images {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.airdrop-images img {
+    width: 100px;
+    height: auto;
+    flex-shrink: 0;      /* запрещаем сжимать картинки */
+}
+
+airdrop-arrow {
+    background: var(--color-gradient-primary);
+
+}
+
+.airdrop-text {
+    text-align: center;
+}
+
+.airdrop-button {
+    text-align: center;
+}
+
+.airdrop-button button {
+    width: 60%;
+}

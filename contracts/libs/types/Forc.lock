@@ -1,0 +1,39 @@
+[[package]]
+name = "src20"
+version = "0.8.1"
+source = "registry+src20?0.8.1#QmeJqNZFcPCUgKDWRjeKHQhEraMHX9n5sr8S9Vkt4wmnV1!"
+dependencies = ["std"]
+
+[[package]]
+name = "src3"
+version = "0.8.1"
+source = "registry+src3?0.8.1#QmaRv83wVWP9UnUCtMMoJih9f8eCiA3k4MnH75m4zVZQ18!"
+dependencies = ["std"]
+
+[[package]]
+name = "src5"
+version = "0.8.1"
+source = "registry+src5?0.8.1#QmcUKCMFWYYpGzqSxZFn3d97MhQ9RAiEMoQGWjVE2AmMFN!"
+dependencies = ["std"]
+
+[[package]]
+name = "src7"
+version = "0.8.1"
+source = "registry+src7?0.8.1#QmfGnm1jMVLTgG7NgE5vVC4j2ngvbhgbqct7bAYaQjSAsq!"
+dependencies = ["std"]
+
+[[package]]
+name = "std"
+version = "0.69.1"
+source = "registry+std?0.69.1#QmbPunScay4xpfHKpxQ71dFKXSiyJuPP8P8YhgX5Dkmzm9!"
+
+[[package]]
+name = "types"
+source = "member"
+dependencies = [
+    "src20",
+    "src3",
+    "src5",
+    "src7",
+    "std",
+]

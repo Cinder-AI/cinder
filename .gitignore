@@ -1,0 +1,12 @@
+contracts/target
+**/out
+**/target
+react-app/public/fuel-contracts.local.json
+react-app/.env.contracts.local
+react-app/.env.contracts.*.local
+react-app/src/sway-api/contracts/*Factory.ts
+.dockerignore
+.env
+*.md
+*.txt
+react-app/.pnpm_store/

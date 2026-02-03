@@ -1,0 +1,31 @@
+@font-face {
+    font-family: 'Altone';
+    src: url('/fonts/Altone-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Altone';
+    src: url('/fonts/Altone-RegularOblique.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Altone';
+    src: url('/fonts/Altone-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Altone';
+    src: url('/fonts/Altone-BoldOblique.ttf') format('truetype');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}

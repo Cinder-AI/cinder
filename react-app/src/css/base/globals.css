@@ -1,0 +1,26 @@
+/* Global Styles and Reset */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: var(--app-height);
+    overflow-x: hidden;
+    font-family: var(--font-family);
+}
+
+#app {
+    font-family: var(--font-family);
+    margin: 0 4rem;
+    height: var(--app-height);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    #app {
+        margin: 0;
+    }
+} 
+

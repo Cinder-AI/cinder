@@ -1,0 +1,17 @@
+/* Start Page Layout */
+.start-page {
+    height: 100vh;
+    height: var(--app-height);
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    margin-left: -50vw;
+}
+
+/* iOS Safari специальные фиксы */
+@supports (-webkit-touch-callout: none) {
+    .start-page {
+        height: -webkit-fill-available;
+        min-height: -webkit-fill-available;
+    }
+} 
