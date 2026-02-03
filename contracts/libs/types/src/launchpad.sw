@@ -24,7 +24,16 @@ abi Launchpad {
     fn delete_campaign(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]
-    fn launch_campaign(asset_id: AssetId, amm_contract_id: ContractId) -> bool;
+    fn launch_campaign(asset_id: AssetId) -> bool;
+
+    #[storage(read, write)]
+    fn claim(asset_id: AssetId) -> bool;
+
+    #[storage(read, write), payable]
+    fn buy(asset_id: AssetId, amount: u64, max_cost: u64) -> u64;
+
+    #[storage(read, write), payable]
+    fn sell(asset_id: AssetId, amount: u64, min_refund: u64) -> u64;
 
     #[storage(read)]
     fn get_campaign(asset_id: AssetId) -> Campaign;
