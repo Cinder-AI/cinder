@@ -1,4 +1,6 @@
 use fuels::{prelude::*, types::{ContractId, Identity}};
+use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 
 // Загрузка ABI контракта
 abigen!(Contract(
@@ -12,6 +14,35 @@ async fn create_default_campaign(contract_instance: &LaunchpadContract<Wallet>) 
     let description = String::from("Test Description");
     let image = String::from("Test Image");
     contract_instance.methods().create_campaign(name, ticker, description, image).call().await.unwrap().value
+}
+
+fn build_random_pledges(
+    rng: &mut StdRng,
+    users_count: usize,
+    max_pledge: u64,
+    target_total: u64,
+) -> Vec<u64> {
+    assert!(users_count > 0, "users_count must be > 0");
+    let min_total = users_count as u64;
+    let max_total = users_count as u64 * max_pledge;
+    assert!(target_total >= min_total, "target_total too small");
+    assert!(target_total <= max_total, "target_total too large");
+
+    let mut pledges = vec![1u64; users_count];
+    let mut remaining = target_total - min_total;
+
+    for i in 0..users_count {
+        let max_add = (max_pledge - 1).min(remaining);
+        let add = if i == users_count - 1 {
+            remaining
+        } else {
+            rng.gen_range(0..=max_add)
+        };
+        pledges[i] += add;
+        remaining -= add;
+    }
+
+    pledges
 }
 
 #[tokio::test]
@@ -174,12 +205,14 @@ async fn test_pledge() {
     dbg!(user_1_pledge);
 }
 
+
 #[tokio::test]
 async fn test_full_campaign_flow() {
+    const WALLETS_COUNT: u64 = 100;
     // 1. Создаем 6 кошельков
     let mut wallets = launch_custom_provider_and_get_wallets(
         WalletsConfig::new(
-            Some(6),             // 6 кошельков
+            Some(WALLETS_COUNT),             // 6 кошельков
             Some(1),             // 1 тип монет
             Some(1_000_000_000), // по 1 млрд базовых токенов
         ),
@@ -190,39 +223,30 @@ async fn test_full_campaign_flow() {
     .unwrap();
     
     let base_asset = AssetId::default();
-    
-    // Распределяем кошельки
     let creator_wallet = wallets.pop().unwrap();
-    let pledger_1 = wallets.pop().unwrap();
-    let pledger_2 = wallets.pop().unwrap();
-    let pledger_3 = wallets.pop().unwrap();
-    let pledger_4 = wallets.pop().unwrap();
-    let pledger_5 = wallets.pop().unwrap();
-    
-    println!("=== Балансы кошельков до теста ===");
-    println!("Creator: {}", creator_wallet.get_asset_balance(&base_asset).await.unwrap());
-    println!("Pledger 1: {}", pledger_1.get_asset_balance(&base_asset).await.unwrap());
-    
-    // 2. Деплоим контракт с измененным MIGRATION_TARGET для теста
+    println!("Creator wallet: {:?}", creator_wallet.address());
     let contract_id = Contract::load_from(
         "./out/debug/launchpad.bin",
-        LoadConfiguration::default()
+        LoadConfiguration::default(),
     )
     .unwrap()
     .deploy(&creator_wallet, TxPolicies::default())
     .await
     .unwrap()
     .contract_id;
-    
     println!("\n=== Контракт задеплоен: {:?} ===", contract_id);
-    
-    // 3. Создаем инстансы контракта для каждого кошелька
     let contract_creator = LaunchpadContract::new(contract_id, creator_wallet.clone());
-    let contract_p1 = LaunchpadContract::new(contract_id, pledger_1.clone());
-    let contract_p2 = LaunchpadContract::new(contract_id, pledger_2.clone());
-    let contract_p3 = LaunchpadContract::new(contract_id, pledger_3.clone());
-    let contract_p4 = LaunchpadContract::new(contract_id, pledger_4.clone());
-    let contract_p5 = LaunchpadContract::new(contract_id, pledger_5.clone());
+
+    let mut user_wallets = Vec::new();
+
+    let mut i = 0;
+    while i < WALLETS_COUNT - 1 {
+        let wallet = wallets.pop().unwrap();
+        user_wallets.push(wallet);
+
+        i += 1;
+    }
+    
     
     // 4. Creator создает кампанию
     let token_name = String::from("Cinder Token");
@@ -249,135 +273,234 @@ async fn test_full_campaign_flow() {
     println!("Campaign Status: {:?}", campaign.status);
     println!("Target: {}", campaign.target);
     println!("Total Pledged: {}", campaign.total_pledged);
-    
-    // 5. Пользователи делают pledge КОРРЕКТНЫХ размеров (≤ 20_000)
-    let pledge_amounts = vec![
-        (contract_p1, 15_000u64, "Pledger 1"),
-        (contract_p2, 12_000u64, "Pledger 2"),
-        (contract_p3, 8_000u64, "Pledger 3"),
-        (contract_p4, 10_000u64, "Pledger 4"),
-        (contract_p5, 5_000u64, "Pledger 5"),
-    ];
-    
+
+    // 5. Пользователи делают pledge на случайную сумму D_total <= MIGRATION_TARGET
+    const MAX_PLEDGE: u64 = 20_000;
+    const MIGRATION_TARGET: u64 = 1_000_000;
+    const INITIAL_SUPPLY: u64 = 1_000_000_000;
+    const CURVE_PERCENT: u64 = 80;
+    const TOLERANCE: u128 = 1_000;
+
+    let users_count = user_wallets.len() as u64;
+    let max_total = (users_count * MAX_PLEDGE).min(MIGRATION_TARGET);
+    let mut rng = StdRng::seed_from_u64(42);
+    let target_total = rng.gen_range(users_count..=max_total);
+    let pledges = build_random_pledges(&mut rng, users_count as usize, MAX_PLEDGE, target_total);
+
     println!("\n=== Начинаем pledge ===");
-    
+    let mut pledged_wallets: Vec<(Wallet, u64)> = Vec::new();
     let mut total_pledged = 0u64;
-    for (contract_instance, amount, name) in pledge_amounts.iter() {
-        println!("{} pledges {} tokens", name, amount);
-        
+
+    for (wallet, amount) in user_wallets.iter().zip(pledges.into_iter()) {
+        assert!(amount <= MAX_PLEDGE, "Pledge exceeds MAX_PLEDGE");
+
+        let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
         let result = contract_instance
             .methods()
-            .pledge(token_id, *amount)
-            .call_params(CallParameters::new(*amount, base_asset, 1_000_000))
+            .pledge(token_id, amount)
+            .call_params(CallParameters::new(amount, base_asset, 1_000_000))
             .unwrap()
             .call()
             .await
             .unwrap();
-        
-        assert!(result.value, "{} pledge failed", name);
+
+        assert!(result.value, "Pledge failed");
         total_pledged += amount;
-        
-        // Проверяем pledge пользователя
-        let user_identity = Identity::Address(contract_instance.account().address().into());
-        let pledged = contract_instance.methods().get_pledge(token_id, user_identity).call().await.unwrap().value;
-        println!("{} pledged amount: {}", name, pledged);
-        assert_eq!(pledged, *amount);
+        pledged_wallets.push((wallet.clone(), amount));
+
+        let user_identity = Identity::Address(wallet.address().into());
+        let pledged = contract_instance
+            .methods()
+            .get_pledge(token_id, user_identity)
+            .call()
+            .await
+            .unwrap()
+            .value;
+        assert_eq!(pledged, amount);
     }
-    
+
+    assert_eq!(total_pledged, target_total);
     println!("\nTotal pledged: {}", total_pledged);
-    
+
     // Проверяем общий pledge в кампании
     let campaign_after = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     println!("Campaign Total Pledged: {}", campaign_after.total_pledged);
     assert_eq!(campaign_after.total_pledged, total_pledged);
-    
-    // 6. Информируем о достижении target (но не блокируем тест)
-    println!("\n=== Статус достижения цели ===");
-    println!("Target: {}", campaign_after.target);
-    println!("Pledged: {}", campaign_after.total_pledged);
-    
-    if campaign_after.total_pledged >= campaign_after.target {
-        println!("✅ Target достигнут!");
-    } else {
-        println!("⚠️  Target не достигнут (но запускаем для теста)");
-    }
-    
+
+    // 6. Запускаем кампанию
     println!("\n=== Запускаем кампанию ===");
-    
-    // 7. Creator запускает кампанию
     let launch_result = contract_creator
         .methods()
         .launch_campaign(token_id)
-        .with_variable_output_policy(VariableOutputPolicy::EstimateMinimum)
-
         .call()
         .await
         .unwrap();
-    
     assert!(launch_result.value, "Launch failed");
-    println!("Campaign launched successfully!");
-    let contract_balance = contract_creator
-        .account()
-        .provider()
-        .get_contract_asset_balance(&contract_id, &base_asset)
-        .await
-        .unwrap();
 
-    println!("Contract balance (base asset): {}", contract_balance);
-
-    let contract_address = contract_creator.account().address();
-    let balances = contract_creator
-        .account()
-        .provider()
-        .get_balances(&contract_address)
-        .await
-        .unwrap();
-
-    println!("Balances: {:?}", balances);
-    
-    // 8. Проверяем статус кампании
+    // 7. Проверяем статус кампании и объем распределения
     let campaign_launched = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     println!("Campaign Status after launch: {:?}", campaign_launched.status);
     assert_eq!(campaign_launched.status, CampaignStatus::Launched);
-    println!("Total Supply: {}", campaign_launched.total_supply);
-    
+
+    let curve_supply = INITIAL_SUPPLY * CURVE_PERCENT / 100;
+    let users_share = curve_supply * total_pledged / MIGRATION_TARGET;
+    assert_eq!(campaign_launched.curve.sold_supply, users_share);
+
+    // 8. Пользователи получают токены через claim
+    println!("\n=== Claim для пользователей ===");
+    for (wallet, _) in pledged_wallets.iter() {
+        let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
+        let claim_result = contract_instance
+            .methods()
+            .claim(token_id)
+            .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+            .call()
+            .await
+            .unwrap();
+        assert!(claim_result.value, "Claim failed");
+    }
+
     // 9. Проверяем балансы токенов у участников
     println!("\n=== Проверяем балансы токенов ===");
-    
-    let wallets_check = vec![
-        (pledger_1, 15_000u64, "Pledger 1"),
-        (pledger_2, 12_000u64, "Pledger 2"),
-        (pledger_3, 8_000u64, "Pledger 3"),
-        (pledger_4, 10_000u64, "Pledger 4"),
-        (pledger_5, 5_000u64, "Pledger 5"),
-    ];
-    
-    let initial_supply = 1_000_000_000u64;
-    let distribution_supply = initial_supply * 80 / 100; // 80% для участников
-    
-    for (wallet, pledge_amount, name) in wallets_check.iter() {
+    for (wallet, amount) in pledged_wallets.iter() {
         let token_balance = wallet.get_asset_balance(&token_id).await.unwrap();
-        let expected = ((pledge_amount * distribution_supply) / total_pledged) as u128;
-        
-        println!("{}: balance = {}, expected = {}", name, token_balance, expected);
-        
-        // Проверяем, что баланс примерно равен ожидаемому (с учетом округления)
+        let expected = (users_share as u128 * (*amount as u128)) / (total_pledged as u128);
         assert!(
-            token_balance >= expected.saturating_sub(1000) && token_balance <= expected + 1000,
-            "{} balance mismatch: got {}, expected {}",
-            name,
+            token_balance >= expected.saturating_sub(TOLERANCE) && token_balance <= expected + TOLERANCE,
+            "Balance mismatch: got {}, expected {}",
             token_balance,
             expected
         );
     }
-    
+
     println!("\n=== ✅ Тест завершен успешно! ===");
-    println!("Распределение:");
-    println!("  Pledger 1 (15k): {}%", (15_000 * 100) / total_pledged);
-    println!("  Pledger 2 (12k): {}%", (12_000 * 100) / total_pledged);
-    println!("  Pledger 3 (8k): {}%", (8_000 * 100) / total_pledged);
-    println!("  Pledger 4 (10k): {}%", (10_000 * 100) / total_pledged);
-    println!("  Pledger 5 (5k): {}%", (5_000 * 100) / total_pledged);
+}
+
+#[tokio::test]
+async fn test_bonding_curve_buy_sell() {
+    let mut wallets = launch_custom_provider_and_get_wallets(
+        WalletsConfig::new(Some(3), Some(1), Some(1_000_000_000)),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    let creator_wallet = wallets.pop().unwrap();
+    let user_1 = wallets.pop().unwrap();
+    let user_2 = wallets.pop().unwrap();
+    let base_asset = AssetId::default();
+
+    let contract_id = Contract::load_from(
+        "./out/debug/launchpad.bin",
+        LoadConfiguration::default(),
+    )
+    .unwrap()
+    .deploy(&creator_wallet, TxPolicies::default())
+    .await
+    .unwrap()
+    .contract_id;
+    let contract_creator = LaunchpadContract::new(contract_id, creator_wallet.clone());
+    let contract_user_1 = LaunchpadContract::new(contract_id, user_1.clone());
+    let contract_user_2 = LaunchpadContract::new(contract_id, user_2.clone());
+
+    let token_id = create_default_campaign(&contract_creator).await;
+
+    let amount_1 = 20_000u64;
+    contract_user_1
+        .methods()
+        .pledge(token_id, amount_1)
+        .call_params(CallParameters::new(amount_1, base_asset, 1_000_000))
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+
+    let amount_2 = 10_000u64;
+    contract_user_2
+        .methods()
+        .pledge(token_id, amount_2)
+        .call_params(CallParameters::new(amount_2, base_asset, 1_000_000))
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+
+    contract_creator.methods().launch_campaign(token_id).call().await.unwrap();
+
+    contract_user_1
+        .methods()
+        .claim(token_id)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call()
+        .await
+        .unwrap();
+    contract_user_2
+        .methods()
+        .claim(token_id)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call()
+        .await
+        .unwrap();
+
+    let campaign = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
+    let curve = campaign.curve;
+    let remaining_supply = curve.max_supply - curve.sold_supply;
+    let buy_amount = (remaining_supply / 100).max(1);
+
+    let price_scale: u128 = 1_000_000_000;
+    let s = curve.sold_supply as u128;
+    let delta = buy_amount as u128;
+    let base = curve.base_price as u128;
+    let slope = curve.slope as u128;
+    let s_after = s + delta;
+    let cost_scaled = base * delta + (slope * (s_after * s_after - s * s)) / 2;
+    let cost = (cost_scaled / price_scale) as u64;
+
+    let balance_before_buy = user_1.get_asset_balance(&token_id).await.unwrap();
+    let buy_result = contract_user_1
+        .methods()
+        .buy(token_id, buy_amount, cost)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call_params(CallParameters::new(cost, base_asset, 1_000_000))
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    assert_eq!(buy_result.value, cost);
+
+    let balance_after_buy = user_1.get_asset_balance(&token_id).await.unwrap();
+    assert_eq!(balance_after_buy, balance_before_buy + buy_amount as u128);
+
+    let campaign_after_buy = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
+    assert_eq!(campaign_after_buy.curve.sold_supply, curve.sold_supply + buy_amount);
+
+    let sell_amount = (buy_amount / 2).max(1);
+    let s_sell = campaign_after_buy.curve.sold_supply as u128;
+    let delta_sell = sell_amount as u128;
+    let s_before = s_sell - delta_sell;
+    let refund_scaled = base * delta_sell + (slope * (s_sell * s_sell - s_before * s_before)) / 2;
+    let refund = (refund_scaled / price_scale) as u64;
+
+    let balance_before_sell = user_1.get_asset_balance(&token_id).await.unwrap();
+    let sell_result = contract_user_1
+        .methods()
+        .sell(token_id, sell_amount, refund)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call_params(CallParameters::new(sell_amount, token_id, 1_000_000))
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    assert_eq!(sell_result.value, refund);
+
+    let balance_after_sell = user_1.get_asset_balance(&token_id).await.unwrap();
+    assert_eq!(balance_after_sell, balance_before_sell - sell_amount as u128);
+
+    let campaign_after_sell = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
+    assert_eq!(
+        campaign_after_sell.curve.sold_supply,
+        campaign_after_buy.curve.sold_supply - sell_amount
+    );
 }
 
 #[tokio::test]

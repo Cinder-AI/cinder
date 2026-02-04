@@ -10,7 +10,7 @@ use std::{
     auth::msg_sender,
 };
 
-use src20::{SetNameEvent, SetSymbolEvent, SetDecimalsEvent};  // ← Добавьте точку с запятой!
+use src20::{SetNameEvent, SetSymbolEvent, SetDecimalsEvent};
 
 
 #[storage(write)]

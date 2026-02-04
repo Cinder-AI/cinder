@@ -5,6 +5,8 @@ use std::{
     alias::SubId,
 };
 
+use ::bonding::BondingCurve;
+
 pub enum CampaignStatus {
     Active: (),
     Launched: (),
@@ -34,4 +36,6 @@ pub struct Campaign {
     pub sub_id: SubId,
     pub total_pledged: u64, 
     pub total_supply: u64,
+    pub curve: BondingCurve,
+    pub amm_reserved: u64,
 }
