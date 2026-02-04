@@ -29,6 +29,9 @@ abi Launchpad {
     #[storage(read, write)]
     fn claim(asset_id: AssetId) -> bool;
 
+    #[storage(read, write)]
+    fn refund_pledge(asset_id: AssetId) -> bool;
+
     #[storage(read, write), payable]
     fn buy(asset_id: AssetId, amount: u64, max_cost: u64) -> u64;
 

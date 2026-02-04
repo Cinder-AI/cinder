@@ -31,8 +31,7 @@ configurable {
     INITIAL_SUPPLY: u64 = 1_000_000_000,
     MAX_PLEDGE_AMOUNT: u64 = 20_000,
     PLEDGE_ASSET_ID: b256 = 0x0000000000000000000000000000000000000000000000000000000000000000,
-    CURVE_PERCENT: u64 = 80,
-    AMM_PERCENT: u64 = 20,
+    CURVE_SUPPLY_PERCENT: u64 = 80,
 }
 
 storage {
@@ -75,6 +74,8 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
 impl Launchpad for Contract {
 
     #[storage(read)]
+    /// Returns metadata for all created assets.
+    /// Iterates storage.assets and resolves TokenInfo for each asset id.
     fn get_assets() -> Vec<TokenInfo> {
         let mut assets : Vec<TokenInfo> = Vec::new();
         let mut i = 0;
@@ -88,6 +89,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read)]
+    /// Returns all stored campaigns.
+    /// Iterates storage.assets and collects Campaigns that exist.
     fn get_campaigns() -> Vec<Campaign> {
         let mut campaigns: Vec<Campaign> = Vec::new();
         let mut i = 0;
@@ -102,6 +105,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+    /// Creates a new campaign and initializes its metadata.
+    /// Generates deterministic sub_id from (counter, sender).
     fn create_campaign(
         name: String,
         ticker: String,
@@ -120,7 +125,7 @@ impl Launchpad for Contract {
         set_image(storage.image, asset_id, image);
         set_decimals(storage.decimals, asset_id, 9);
 
-        let curve_supply = INITIAL_SUPPLY * CURVE_PERCENT / 100;
+        let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
         let curve = BondingCurve::new(curve_supply);
         let campaign = Campaign {
             target: MIGRATION_TARGET,
@@ -141,26 +146,14 @@ impl Launchpad for Contract {
 
     #[storage(read, write)]
     #[payable]
+    /// Denies an active campaign and refunds all pledges.
+    /// Only valid for Active campaigns.
     fn deny_campaign(
         asset_id: AssetId,
     ) -> bool {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
-        
-        let pledges_vec = storage.pledges.get(asset_id);
-        let pledges_len = pledges_vec.len();
-        
-        let pledge_asset = pledge_asset_id();
-        let mut i = 0;
-        while i < pledges_len {
-            let pledge = pledges_vec.get(i).unwrap().read();            
-            
-            // Возвращаем средства пользователю
-            transfer(pledge.sender, pledge_asset, pledge.amount);
-            
-            i += 1;
-        }
         
         campaign.status = CampaignStatus::Failed;
         storage.campaigns.insert(asset_id, campaign);
@@ -169,6 +162,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+    /// Deletes campaign metadata and removes asset reference.
+    /// Returns true if campaign no longer exists.
     fn delete_campaign(
         asset_id: AssetId,
     ) -> bool {
@@ -185,6 +180,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+    /// Launches a campaign: initializes curve, mints remaining/AMM supply.
+    /// Requires creator and at least one pledge.
     fn launch_campaign(asset_id: AssetId) -> bool {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
@@ -193,14 +190,14 @@ impl Launchpad for Contract {
         require(campaign.creator == sender, "Only creator can launch");
         require(campaign.total_pledged > 0, "No pledges");
         
-        let curve_supply = INITIAL_SUPPLY * CURVE_PERCENT / 100;
+        let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
         let amm_supply = INITIAL_SUPPLY - curve_supply;
 
         let users_share = curve_supply * campaign.total_pledged / MIGRATION_TARGET;
         let remaining_supply = curve_supply - users_share;
         require(users_share <= curve_supply, "User share exceeds curve supply");
 
-        campaign.curve.initialize(campaign.total_pledged, users_share, campaign.target);
+        campaign.curve.initialize(campaign.total_pledged, users_share);
         mint(campaign.sub_id, remaining_supply);
         mint(campaign.sub_id, amm_supply);
         campaign.amm_reserved = amm_supply;
@@ -211,6 +208,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+    /// Claims user allocation after launch.
+    /// User can claim only once; returns false if no pledge found.
     fn claim(asset_id: AssetId) -> bool {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
@@ -238,7 +237,36 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+    /// Refunds user pledge after campaign denial.
+    /// User can refund only once; returns false if no pledge found.
+    fn refund_pledge(asset_id: AssetId) -> bool {
+        let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+        let sender = msg_sender().unwrap();
+
+        require(campaign.status == CampaignStatus::Failed, "Not failed");
+
+        let pledges_vec = storage.pledges.get(asset_id);
+        let pledges_len = pledges_vec.len();
+        let mut i = 0;
+        while i < pledges_len {
+            let mut pledge = pledges_vec.get(i).unwrap().read();
+            if pledge.sender == sender {
+                require(!pledge.claimed, "Already claimed");
+                transfer(sender, pledge_asset_id(), pledge.amount);
+                pledge.claimed = true;
+                pledges_vec.set(i, pledge);
+                return true;
+            }
+            i += 1;
+        }
+
+        false
+    }
+
+    #[storage(read, write)]
     #[payable]
+    /// Buys tokens from bonding curve.
+    /// Caller must send exact base-asset cost; returns cost.
     fn buy(asset_id: AssetId, amount: u64, max_cost: u64) -> u64 {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
@@ -254,15 +282,17 @@ impl Launchpad for Contract {
         let sent_amount = msg_amount();
         require(sent_amount == cost, "Sent amount is not the cost");
 
-        campaign.curve.buy(amount);
+        let _ = campaign.curve.buy(amount);
         storage.campaigns.insert(asset_id, campaign);
 
-        mint_to(sender, campaign.sub_id, amount);
+        transfer(sender, asset_id, amount);
         cost
     }
 
     #[storage(read, write)]
     #[payable]
+    /// Sells tokens back to bonding curve.
+    /// Caller must send token amount; returns refund in base asset.
     fn sell(asset_id: AssetId, amount: u64, min_refund: u64) -> u64 {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
@@ -277,16 +307,17 @@ impl Launchpad for Contract {
         let refund = campaign.curve.sell_refund(amount);
         require(refund >= min_refund, "Refund below min");
 
-        campaign.curve.sell(amount);
+        let _ = campaign.curve.sell(amount);
         storage.campaigns.insert(asset_id, campaign);
 
-        burn(campaign.sub_id, amount);
         transfer(sender, pledge_asset_id(), refund);
         refund
     }
 
     #[storage(read, write)]
     #[payable]
+    /// Pledges base asset to an active campaign.
+    /// Enforces max pledge per user and exact msg_amount.
     fn pledge(
         asset_id: AssetId,
         amount: u64,
@@ -294,7 +325,6 @@ impl Launchpad for Contract {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
         
-        // Проверяем базовые условия
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
         require(campaign.creator != sender, "Creator cannot pledge");
         require(amount > 0, "Amount must be greater than 0");
@@ -306,11 +336,9 @@ impl Launchpad for Contract {
         let sent_amount = msg_amount();
         require(sent_amount == amount, "Sent amount is not the pledge amount");
         
-        // Получаем StorageVec залогов для данного токена
         let pledges_vec = storage.pledges.get(asset_id);
         let pledges_len = pledges_vec.len();
         
-        // Ищем существующий залог пользователя
         let mut found_index = None::<u64>;
         let mut current_amount: u64 = 0;
         
@@ -326,10 +354,8 @@ impl Launchpad for Contract {
             i += 1;
         }
         
-        // Проверяем лимиты и обновляем
         match found_index {
             Some(index) => {
-                // Залог уже существует - обновляем
                 let new_total = current_amount + amount;
                 require(new_total <= MAX_PLEDGE_AMOUNT, "Total pledge exceeds MAX_PLEDGE_AMOUNT");
                 
@@ -342,7 +368,6 @@ impl Launchpad for Contract {
                 pledges_vec.set(index, updated_pledge);
             },
             None => {
-                // Первый залог - добавляем новый
                 require(amount <= MAX_PLEDGE_AMOUNT, "Amount exceeds MAX_PLEDGE_AMOUNT");
                 
                 let new_pledge = Pledge {
@@ -355,7 +380,6 @@ impl Launchpad for Contract {
             },
         }
         
-        // Обновляем total_pledged в кампании
         campaign.total_pledged += amount;
         storage.campaigns.insert(asset_id, campaign);
         
@@ -363,6 +387,7 @@ impl Launchpad for Contract {
     }
 
     #[storage(read)]
+    /// Returns pledged amount for a user and campaign.
     fn get_pledge(
         asset_id: AssetId,
         sender: Identity,
@@ -381,6 +406,7 @@ impl Launchpad for Contract {
     }
 
     #[storage(read)]
+    /// Returns total pledged amount for a campaign.
     fn get_total_pledged(
         asset_id: AssetId,
     ) -> u64 {
@@ -398,6 +424,7 @@ impl Launchpad for Contract {
 
 
     #[storage(read)]
+    /// Returns campaign by asset id (reverts if not found).
     fn get_campaign(
         asset_id: AssetId,
     ) -> Campaign {
@@ -405,11 +432,13 @@ impl Launchpad for Contract {
     }
 
     #[storage(read)]
+    /// Returns total number of campaigns created.
     fn get_campaign_counter() -> u64 {
         storage.campaign_counter.read()
     }
 
     #[storage(read)]
+    /// Returns token info for asset id.
     fn get_token_info(
         asset_id: AssetId
     ) -> TokenInfo {
@@ -417,6 +446,8 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write), payable]
+    /// Mints token amount to recipient for given sub_id.
+    /// Updates total_supply storage and emits TotalSupplyEvent.
     fn mint(
         recipient: Identity,
         sub_id: SubId,
@@ -430,39 +461,3 @@ impl Launchpad for Contract {
         TotalSupplyEvent::new(asset_id, new_supply, recipient).log();
     }
 }
-
-// impl SRC20 for Contract {
-//     #[storage(read)]
-//     fn total_assets() -> u64 {
-//         storage.campaign_counter.read()
-//     }
-    
-//     #[storage(read)]
-//     fn total_supply(asset: AssetId) -> Option<u64> {
-//         storage.total_supplies.get(asset).try_read()
-//     }
-    
-//     #[storage(read)]
-//     fn name(asset: AssetId) -> Option<StorageString> {
-//         match storage.name.get(asset).try_read() {
-//             Some(name) => Some(name),
-//             None => None,
-//         }
-//     }
-
-//     #[storage(read)]
-//     fn symbol(asset: AssetId) -> Option<StorageString> {
-//         match storage.ticker.get(asset).try_read() {
-//             Some(ticker) => Some(ticker),
-//             None => None,
-//         }
-//     }
-        
-//     #[storage(read)]
-//     fn decimals(asset: AssetId) -> Option<u8> {
-//         match storage.token_info.get(asset).try_read() {
-//             Some(info) => Some(info.decimals),
-//             None => None,
-//         }
-//     }
-// }

@@ -13,7 +13,7 @@ impl BondingCurve {
         Self { sold_supply: 0, max_supply, base_price: 0, slope: 0 }
     }
 
-    pub fn initialize(ref mut self, total_pledged: u64, users_share: u64, target: u64) {
+    pub fn initialize(ref mut self, total_pledged: u64, users_share: u64) {
         self.sold_supply = users_share;
         let avg_price = (total_pledged * PRICE_SCALE) / users_share;
         self.slope = avg_price / self.max_supply;
