@@ -37,7 +37,6 @@ storage {
 }
 
 
-
 abi EmitSRC20Events {
     #[storage(read)]
     fn emit_src20_events();

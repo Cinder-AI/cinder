@@ -30,16 +30,16 @@ async fn mint_100_tokens() {
     .contract_id;
 
     let contract = CinderContract::new(contract_id, wallet.clone());
-    // Получаем default_sub_id из контракта
+    // Get default_sub_id from contract
     let default_sub_id = contract.methods().default_sub_id().call().await.unwrap().value;
-    // ИСПРАВЛЕНИЕ: используем default_asset вместо base_asset
+    // NOTE: use default_asset instead of base_asset
     let contract_asset = contract.methods().default_asset().call().await.unwrap().value;
     let asset_info = contract.methods().asset_info(contract_asset).call().await.unwrap().value;
     dbg!(asset_info);
     let recipient = Identity::Address(wallet.address().into());
     let balance = wallet.get_asset_balance(&contract_asset).await.unwrap();
     dbg!(balance);
-    // Минтим токены
+    // Mint tokens
     let result = contract.methods()
         .mint(recipient, Some(default_sub_id), 100)
         .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
@@ -47,7 +47,7 @@ async fn mint_100_tokens() {
         .await
         .unwrap();
     
-    // Проверяем total_supply - используем contract_asset
+    // Check total_supply using contract_asset
     let total_supply = contract.methods()
         .total_supply(contract_asset)
         .call()
@@ -57,7 +57,7 @@ async fn mint_100_tokens() {
     dbg!(total_supply);
     assert_eq!(total_supply, Some(100u64));
     
-    // Проверяем баланс кошелька
+    // Check wallet balance
     dbg!(contract_asset);
     let balance = wallet.get_asset_balance(&contract_asset).await.unwrap();
     assert_eq!(balance, 100);
