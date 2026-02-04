@@ -208,7 +208,7 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
-    /// Launches a campaign: initializes curve, mints remaining/AMM supply.
+    /// Launches a campaign: initializes curve, mints full supply to contract.
     /// Requires creator and at least one pledge.
     fn launch_campaign(asset_id: AssetId) -> bool {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
@@ -260,7 +260,7 @@ impl Launchpad for Contract {
                 require(!pledge.claimed, "Already claimed");
                 let users_share = campaign.curve.sold_supply;
                 let user_share = (pledge.amount * users_share) / campaign.total_pledged;
-                mint_to(sender, campaign.sub_id, user_share);
+                transfer(sender, asset_id, user_share);
                 pledge.claimed = true;
                 pledges_vec.set(i, pledge);
                 log(ClaimEvent {
