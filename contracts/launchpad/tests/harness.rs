@@ -2,11 +2,70 @@ use fuels::{prelude::*, types::{ContractId, Identity}};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
-// Загрузка ABI контракта
+const DEFAULT_WALLET_BALANCE: u64 = 1_000_000_000;
+
+// Load contract ABI
 abigen!(Contract(
     name = "LaunchpadContract",
     abi = "launchpad/out/debug/launchpad-abi.json"
 ));
+
+async fn setup_wallets(count: u64) -> Vec<Wallet> {
+    launch_custom_provider_and_get_wallets(
+        WalletsConfig::new(
+            Some(count),
+            Some(1),
+            Some(DEFAULT_WALLET_BALANCE),
+        ),
+        None,
+        None,
+    )
+    .await
+    .unwrap()
+}
+
+async fn deploy_launchpad(wallet: &Wallet) -> ContractId {
+    Contract::load_from(
+        "./out/debug/launchpad.bin",
+        LoadConfiguration::default(),
+    )
+    .unwrap()
+    .deploy(wallet, TxPolicies::default())
+    .await
+    .unwrap()
+    .contract_id
+}
+
+fn instance(contract_id: ContractId, wallet: &Wallet) -> LaunchpadContract<Wallet> {
+    LaunchpadContract::new(contract_id, wallet.clone())
+}
+
+async fn pledge_amount(
+    contract_id: ContractId,
+    wallet: &Wallet,
+    token_id: AssetId,
+    amount: u64,
+) {
+    let base_asset = AssetId::default();
+    instance(contract_id, wallet)
+        .methods()
+        .pledge(token_id, amount)
+        .call_params(CallParameters::new(amount, base_asset, 1_000_000))
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+}
+
+async fn claim_tokens(contract_id: ContractId, wallet: &Wallet, token_id: AssetId) {
+    instance(contract_id, wallet)
+        .methods()
+        .claim(token_id)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call()
+        .await
+        .unwrap();
+}
 
 async fn create_default_campaign(contract_instance: &LaunchpadContract<Wallet>) -> AssetId {
     let name = String::from("Test Token");
@@ -47,34 +106,16 @@ fn build_random_pledges(
 
 #[tokio::test]
 async fn test_contract_deployment() {
-    // Запуск локального провайдера
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(
-            Some(2),             // количество кошельков
-            Some(1),             // количество монет
-            Some(1_000_000_000), // количество токенов
-        ),
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    // Start local provider
+    let mut wallets = setup_wallets(2).await;
     
     let wallet = wallets.pop().unwrap();
 
-    // Деплой контракта и получение ID
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&wallet, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;  // <-- это ПОЛЕ, без скобок!
+    // Deploy contract and get ID
+    let contract_id = deploy_launchpad(&wallet).await;  // <-- this is a FIELD, no parentheses!
 
-    // Создание инстанса контракта
-    let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
+    // Create contract instance
+    let contract_instance = instance(contract_id, &wallet);
     let counter = contract_instance.methods().get_campaign_counter().call().await.unwrap().value;
     dbg!(counter);
     let name = String::from("Test Token");
@@ -114,27 +155,10 @@ async fn test_contract_deployment() {
 
 #[tokio::test]
 async fn test_deny_campaign() {
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(
-            Some(2),
-            Some(1),
-            Some(1_000_000_000),
-        ),
-        None,
-        None,
-    )
-    .await.unwrap();
+    let mut wallets = setup_wallets(2).await;
     let wallet = wallets.pop().unwrap();
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&wallet, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;
-    let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
+    let contract_id = deploy_launchpad(&wallet).await;
+    let contract_instance = instance(contract_id, &wallet);
     let token_id = create_default_campaign(&contract_instance).await;
     let result = contract_instance.methods().deny_campaign(token_id).call().await.unwrap();
     assert!(result.value);
@@ -144,34 +168,77 @@ async fn test_deny_campaign() {
 }
 
 #[tokio::test]
+async fn test_refund_pledge_after_denial() {
+    let mut wallets = setup_wallets(2).await;
+    let creator_wallet = wallets.pop().unwrap();
+    let user_wallet = wallets.pop().unwrap();
+    let base_asset = AssetId::default();
+
+    let contract_id = deploy_launchpad(&creator_wallet).await;
+    let contract_creator = instance(contract_id, &creator_wallet);
+    let contract_user = instance(contract_id, &user_wallet);
+
+    let token_id = create_default_campaign(&contract_creator).await;
+
+    let pledge_amount_value = 10_000u64;
+    pledge_amount(contract_id, &user_wallet, token_id, pledge_amount_value).await;
+
+    contract_creator.methods().deny_campaign(token_id).call().await.unwrap();
+
+    let balance_before = user_wallet.get_asset_balance(&base_asset).await.unwrap();
+    let refund_result = contract_user
+        .methods()
+        .refund_pledge(token_id)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call()
+        .await
+        .unwrap();
+    assert!(refund_result.value);
+    let balance_after = user_wallet.get_asset_balance(&base_asset).await.unwrap();
+    let expected = balance_before + pledge_amount_value as u128;
+    assert!(balance_after <= expected);
+    assert!(balance_after + 10 >= expected);
+
+    let second_refund = contract_user
+        .methods()
+        .refund_pledge(token_id)
+        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
+        .call()
+        .await;
+    assert!(second_refund.is_err());
+}
+
+#[tokio::test]
+async fn test_refund_pledge_before_denial_fails() {
+    let mut wallets = setup_wallets(2).await;
+    let creator_wallet = wallets.pop().unwrap();
+    let user_wallet = wallets.pop().unwrap();
+    let base_asset = AssetId::default();
+
+    let contract_id = deploy_launchpad(&creator_wallet).await;
+    let contract_creator = instance(contract_id, &creator_wallet);
+    let contract_user = instance(contract_id, &user_wallet);
+
+    let token_id = create_default_campaign(&contract_creator).await;
+    let pledge_amount_value = 5_000u64;
+    pledge_amount(contract_id, &user_wallet, token_id, pledge_amount_value).await;
+
+    let refund_result = contract_user.methods().refund_pledge(token_id).call().await;
+    assert!(refund_result.is_err());
+}
+
+#[tokio::test]
 async fn test_pledge() {
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(
-            Some(2),
-            Some(1),
-            Some(1_000_000_000),
-        ),
-        None,
-        None,
-    )
-    .await.unwrap();
+    let mut wallets = setup_wallets(2).await;
     let base_asset = AssetId::default();
     let wallet_1 = wallets.pop().unwrap();
     let balance_1 = wallet_1.get_asset_balance(&base_asset).await.unwrap();
     dbg!(balance_1);
     dbg!(base_asset);
     let wallet_2 = wallets.pop().unwrap();
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&wallet_1, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;
-    let contract_instance = LaunchpadContract::new(contract_id, wallet_1.clone());
-    let contract_instance_2 = LaunchpadContract::new(contract_id, wallet_2.clone());
+    let contract_id = deploy_launchpad(&wallet_1).await;
+    let contract_instance = instance(contract_id, &wallet_1);
+    let contract_instance_2 = instance(contract_id, &wallet_2);
     let token_id = create_default_campaign(&contract_instance).await;
     let token_id_2 = create_default_campaign(&contract_instance_2).await;
 
@@ -209,33 +276,15 @@ async fn test_pledge() {
 #[tokio::test]
 async fn test_full_campaign_flow() {
     const WALLETS_COUNT: u64 = 100;
-    // 1. Создаем 6 кошельков
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(
-            Some(WALLETS_COUNT),             // 6 кошельков
-            Some(1),             // 1 тип монет
-            Some(1_000_000_000), // по 1 млрд базовых токенов
-        ),
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    // 1. Create wallets
+    let mut wallets = setup_wallets(WALLETS_COUNT).await;
     
     let base_asset = AssetId::default();
     let creator_wallet = wallets.pop().unwrap();
     println!("Creator wallet: {:?}", creator_wallet.address());
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&creator_wallet, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;
-    println!("\n=== Контракт задеплоен: {:?} ===", contract_id);
-    let contract_creator = LaunchpadContract::new(contract_id, creator_wallet.clone());
+    let contract_id = deploy_launchpad(&creator_wallet).await;
+    println!("\n=== Contract deployed: {:?} ===", contract_id);
+    let contract_creator = instance(contract_id, &creator_wallet);
 
     let mut user_wallets = Vec::new();
 
@@ -248,7 +297,7 @@ async fn test_full_campaign_flow() {
     }
     
     
-    // 4. Creator создает кампанию
+    // 4. Creator creates a campaign
     let token_name = String::from("Cinder Token");
     let token_ticker = String::from("CIN");
     let token_description = String::from("The hottest memecoin");
@@ -262,19 +311,19 @@ async fn test_full_campaign_flow() {
         .unwrap();
     
     let token_id = result.value;
-    println!("\n=== Токен создан: {:?} ===", token_id);
+    println!("\n=== Token created: {:?} ===", token_id);
     
-    // Проверяем информацию о токене
+    // Check token info
     let token_info = contract_creator.methods().get_token_info(token_id).call().await.unwrap().value;
     println!("Token Info: {} ({}) - {}", token_info.name, token_info.ticker, token_info.description);
     
-    // Проверяем статус кампании
+    // Check campaign status
     let campaign = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     println!("Campaign Status: {:?}", campaign.status);
     println!("Target: {}", campaign.target);
     println!("Total Pledged: {}", campaign.total_pledged);
 
-    // 5. Пользователи делают pledge на случайную сумму D_total <= MIGRATION_TARGET
+    // 5. Users pledge a random D_total <= MIGRATION_TARGET
     const MAX_PLEDGE: u64 = 20_000;
     const MIGRATION_TARGET: u64 = 1_000_000;
     const INITIAL_SUPPLY: u64 = 1_000_000_000;
@@ -287,14 +336,14 @@ async fn test_full_campaign_flow() {
     let target_total = rng.gen_range(users_count..=max_total);
     let pledges = build_random_pledges(&mut rng, users_count as usize, MAX_PLEDGE, target_total);
 
-    println!("\n=== Начинаем pledge ===");
+    println!("\n=== Start pledge ===");
     let mut pledged_wallets: Vec<(Wallet, u64)> = Vec::new();
     let mut total_pledged = 0u64;
 
     for (wallet, amount) in user_wallets.iter().zip(pledges.into_iter()) {
         assert!(amount <= MAX_PLEDGE, "Pledge exceeds MAX_PLEDGE");
 
-        let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
+        let contract_instance = instance(contract_id, wallet);
         let result = contract_instance
             .methods()
             .pledge(token_id, amount)
@@ -322,13 +371,13 @@ async fn test_full_campaign_flow() {
     assert_eq!(total_pledged, target_total);
     println!("\nTotal pledged: {}", total_pledged);
 
-    // Проверяем общий pledge в кампании
+    // Check total pledged in campaign
     let campaign_after = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     println!("Campaign Total Pledged: {}", campaign_after.total_pledged);
     assert_eq!(campaign_after.total_pledged, total_pledged);
 
-    // 6. Запускаем кампанию
-    println!("\n=== Запускаем кампанию ===");
+    // 6. Launch campaign
+    println!("\n=== Launch campaign ===");
     let launch_result = contract_creator
         .methods()
         .launch_campaign(token_id)
@@ -337,7 +386,7 @@ async fn test_full_campaign_flow() {
         .unwrap();
     assert!(launch_result.value, "Launch failed");
 
-    // 7. Проверяем статус кампании и объем распределения
+    // 7. Check campaign status and distribution amount
     let campaign_launched = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     println!("Campaign Status after launch: {:?}", campaign_launched.status);
     assert_eq!(campaign_launched.status, CampaignStatus::Launched);
@@ -346,22 +395,14 @@ async fn test_full_campaign_flow() {
     let users_share = curve_supply * total_pledged / MIGRATION_TARGET;
     assert_eq!(campaign_launched.curve.sold_supply, users_share);
 
-    // 8. Пользователи получают токены через claim
-    println!("\n=== Claim для пользователей ===");
+    // 8. Users claim tokens
+    println!("\n=== Claim for users ===");
     for (wallet, _) in pledged_wallets.iter() {
-        let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
-        let claim_result = contract_instance
-            .methods()
-            .claim(token_id)
-            .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
-            .call()
-            .await
-            .unwrap();
-        assert!(claim_result.value, "Claim failed");
+        claim_tokens(contract_id, wallet, token_id).await;
     }
 
-    // 9. Проверяем балансы токенов у участников
-    println!("\n=== Проверяем балансы токенов ===");
+    // 9. Check user token balances
+    println!("\n=== Check token balances ===");
     for (wallet, amount) in pledged_wallets.iter() {
         let token_balance = wallet.get_asset_balance(&token_id).await.unwrap();
         let expected = (users_share as u128 * (*amount as u128)) / (total_pledged as u128);
@@ -373,79 +414,42 @@ async fn test_full_campaign_flow() {
         );
     }
 
-    println!("\n=== ✅ Тест завершен успешно! ===");
+    println!("\n=== ✅ Test completed successfully! ===");
 }
 
 #[tokio::test]
 async fn test_bonding_curve_buy_sell() {
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(Some(3), Some(1), Some(1_000_000_000)),
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let mut wallets = setup_wallets(3).await;
     let creator_wallet = wallets.pop().unwrap();
     let user_1 = wallets.pop().unwrap();
     let user_2 = wallets.pop().unwrap();
     let base_asset = AssetId::default();
 
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&creator_wallet, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;
-    let contract_creator = LaunchpadContract::new(contract_id, creator_wallet.clone());
-    let contract_user_1 = LaunchpadContract::new(contract_id, user_1.clone());
-    let contract_user_2 = LaunchpadContract::new(contract_id, user_2.clone());
+    let contract_id = deploy_launchpad(&creator_wallet).await;
+    let contract_creator = instance(contract_id, &creator_wallet);
+    let contract_user_1 = instance(contract_id, &user_1);
+    let contract_user_2 = instance(contract_id, &user_2);
 
     let token_id = create_default_campaign(&contract_creator).await;
 
     let amount_1 = 20_000u64;
-    contract_user_1
-        .methods()
-        .pledge(token_id, amount_1)
-        .call_params(CallParameters::new(amount_1, base_asset, 1_000_000))
-        .unwrap()
-        .call()
-        .await
-        .unwrap();
+    pledge_amount(contract_id, &user_1, token_id, amount_1).await;
 
     let amount_2 = 10_000u64;
-    contract_user_2
-        .methods()
-        .pledge(token_id, amount_2)
-        .call_params(CallParameters::new(amount_2, base_asset, 1_000_000))
-        .unwrap()
-        .call()
-        .await
-        .unwrap();
+    pledge_amount(contract_id, &user_2, token_id, amount_2).await;
 
     contract_creator.methods().launch_campaign(token_id).call().await.unwrap();
 
-    contract_user_1
-        .methods()
-        .claim(token_id)
-        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
-        .call()
-        .await
-        .unwrap();
-    contract_user_2
-        .methods()
-        .claim(token_id)
-        .with_variable_output_policy(VariableOutputPolicy::Exactly(1))
-        .call()
-        .await
-        .unwrap();
+    claim_tokens(contract_id, &user_1, token_id).await;
+    claim_tokens(contract_id, &user_2, token_id).await;
 
     let campaign = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     let curve = campaign.curve;
     let remaining_supply = curve.max_supply - curve.sold_supply;
     let buy_amount = (remaining_supply / 100).max(1);
+
+    let price_before = curve.base_price + curve.slope * curve.sold_supply;
+    let expected_price_after_buy = curve.base_price + curve.slope * (curve.sold_supply + buy_amount);
 
     let price_scale: u128 = 1_000_000_000;
     let s = curve.sold_supply as u128;
@@ -473,8 +477,14 @@ async fn test_bonding_curve_buy_sell() {
 
     let campaign_after_buy = contract_creator.methods().get_campaign(token_id).call().await.unwrap().value;
     assert_eq!(campaign_after_buy.curve.sold_supply, curve.sold_supply + buy_amount);
+    let price_after_buy = campaign_after_buy.curve.base_price
+        + campaign_after_buy.curve.slope * campaign_after_buy.curve.sold_supply;
+    assert_eq!(price_after_buy, expected_price_after_buy);
 
     let sell_amount = (buy_amount / 2).max(1);
+    let expected_price_after_sell = curve.base_price
+        + curve.slope * (curve.sold_supply + buy_amount - sell_amount);
+
     let s_sell = campaign_after_buy.curve.sold_supply as u128;
     let delta_sell = sell_amount as u128;
     let s_before = s_sell - delta_sell;
@@ -501,32 +511,17 @@ async fn test_bonding_curve_buy_sell() {
         campaign_after_sell.curve.sold_supply,
         campaign_after_buy.curve.sold_supply - sell_amount
     );
+    let price_after_sell = campaign_after_sell.curve.base_price
+        + campaign_after_sell.curve.slope * campaign_after_sell.curve.sold_supply;
+    assert_eq!(price_after_sell, expected_price_after_sell);
 }
 
 #[tokio::test]
 async fn test_get_assets() {
-    let mut wallets = launch_custom_provider_and_get_wallets(
-        WalletsConfig::new(
-            Some(1),
-            Some(1),
-            Some(1_000_000_000),
-        ),
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let mut wallets = setup_wallets(1).await;
     let wallet = wallets.pop().unwrap();
-    let contract_id = Contract::load_from(
-        "./out/debug/launchpad.bin",
-        LoadConfiguration::default(),
-    )
-    .unwrap()
-    .deploy(&wallet, TxPolicies::default())
-    .await
-    .unwrap()
-    .contract_id;
-    let contract_instance = LaunchpadContract::new(contract_id, wallet.clone());
+    let contract_id = deploy_launchpad(&wallet).await;
+    let contract_instance = instance(contract_id, &wallet);
     let token_id = create_default_campaign(&contract_instance).await;
     let token_id_2 = create_default_campaign(&contract_instance).await;
     let token_id_3 = create_default_campaign(&contract_instance).await;
