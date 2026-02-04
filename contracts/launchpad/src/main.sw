@@ -1,5 +1,6 @@
 contract;
 
+pub mod events;
 pub mod utils;
 
 use std::{
@@ -17,6 +18,17 @@ use std::{
 };
 
 use utils::*;
+use events::{
+    CampaignCreatedEvent,
+    CampaignDeniedEvent,
+    CampaignDeletedEvent,
+    CampaignLaunchedEvent,
+    PledgedEvent,
+    ClaimEvent,
+    BuyEvent,
+    SellEvent,
+    MintEvent,
+};
 use types::launchpad::Launchpad;
 use types::campaign::{CampaignStatus, Campaign};
 use types::bonding::BondingCurve;
@@ -141,6 +153,12 @@ impl Launchpad for Contract {
         storage.campaigns.insert(asset_id, campaign);
         storage.campaign_counter.write(counter + 1);
         storage.assets.push(asset_id);
+        log(CampaignCreatedEvent {
+            asset_id,
+            creator: sender,
+            sub_id,
+            target: MIGRATION_TARGET,
+        });
         asset_id
     }
 
@@ -157,6 +175,10 @@ impl Launchpad for Contract {
         
         campaign.status = CampaignStatus::Failed;
         storage.campaigns.insert(asset_id, campaign);
+        log(CampaignDeniedEvent {
+            asset_id,
+            sender,
+        });
         
         true
     }
@@ -167,6 +189,8 @@ impl Launchpad for Contract {
     fn delete_campaign(
         asset_id: AssetId,
     ) -> bool {
+        let sender = msg_sender().unwrap();
+
         let _ = delete_name(storage.name, asset_id);
         let _ = delete_ticker(storage.ticker, asset_id);
         let _ = delete_description(storage.description, asset_id);
@@ -175,6 +199,10 @@ impl Launchpad for Contract {
         let _ = delete_campaign(storage.campaigns, asset_id);
         let _ = delete_asset(storage.assets, asset_id);
 
+        log(CampaignDeletedEvent {
+            asset_id,
+            sender,
+        });
 
         storage.campaigns.get(asset_id).try_read().is_none()
     }
@@ -203,6 +231,13 @@ impl Launchpad for Contract {
         campaign.amm_reserved = amm_supply;
         campaign.status = CampaignStatus::Launched;
         storage.campaigns.insert(asset_id, campaign);
+        log(CampaignLaunchedEvent {
+            asset_id,
+            sender,
+            users_share,
+            remaining_supply,
+            amm_supply,
+        });
 
         true
     }
@@ -228,6 +263,11 @@ impl Launchpad for Contract {
                 mint_to(sender, campaign.sub_id, user_share);
                 pledge.claimed = true;
                 pledges_vec.set(i, pledge);
+                log(ClaimEvent {
+                    asset_id,
+                    sender,
+                    amount: user_share,
+                });
                 return true;
             }
             i += 1;
@@ -286,6 +326,13 @@ impl Launchpad for Contract {
         storage.campaigns.insert(asset_id, campaign);
 
         transfer(sender, asset_id, amount);
+        log(BuyEvent {
+            asset_id,
+            sender,
+            amount,
+            cost,
+            sold_supply: campaign.curve.sold_supply,
+        });
         cost
     }
 
@@ -311,6 +358,13 @@ impl Launchpad for Contract {
         storage.campaigns.insert(asset_id, campaign);
 
         transfer(sender, pledge_asset_id(), refund);
+        log(SellEvent {
+            asset_id,
+            sender,
+            amount,
+            refund,
+            sold_supply: campaign.curve.sold_supply,
+        });
         refund
     }
 
@@ -382,6 +436,12 @@ impl Launchpad for Contract {
         
         campaign.total_pledged += amount;
         storage.campaigns.insert(asset_id, campaign);
+        log(PledgedEvent {
+            asset_id,
+            sender,
+            amount,
+            total_pledged: campaign.total_pledged,
+        });
         
         true
     }
@@ -459,5 +519,10 @@ impl Launchpad for Contract {
         storage.total_supply.insert(asset_id, new_supply);
         mint_to(recipient, sub_id, amount);
         TotalSupplyEvent::new(asset_id, new_supply, recipient).log();
+        log(MintEvent {
+            asset_id,
+            recipient,
+            amount,
+        });
     }
 }
