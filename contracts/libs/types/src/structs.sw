@@ -4,14 +4,6 @@ use std::string::String;
 use std::identity::Identity;
 
 
-pub struct AssetInfo {
-    pub asset: AssetId,
-    pub name: String,
-    pub symbol: String,
-    pub decimals: u8,
-    pub image: String,
-}
-
 pub struct TokenInfo {
     pub asset_id: AssetId,
     pub name: String,
