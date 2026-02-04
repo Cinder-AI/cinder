@@ -1,0 +1,66 @@
+library;
+
+use std::{
+    identity::Identity,
+    alias::SubId,
+};
+
+pub struct CampaignCreatedEvent {
+    pub asset_id: AssetId,
+    pub creator: Identity,
+    pub sub_id: SubId,
+    pub target: u64,
+}
+
+pub struct CampaignDeniedEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+}
+
+pub struct CampaignDeletedEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+}
+
+pub struct CampaignLaunchedEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub users_share: u64,
+    pub remaining_supply: u64,
+    pub amm_supply: u64,
+}
+
+pub struct PledgedEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub amount: u64,
+    pub total_pledged: u64,
+}
+
+pub struct ClaimEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub amount: u64,
+}
+
+pub struct BuyEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub amount: u64,
+    pub cost: u64,
+    pub sold_supply: u64,
+}
+
+pub struct SellEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub amount: u64,
+    pub refund: u64,
+    pub sold_supply: u64,
+}
+
+pub struct MintEvent {
+    pub asset_id: AssetId,
+    pub recipient: Identity,
+    pub amount: u64,
+}
