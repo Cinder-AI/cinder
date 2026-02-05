@@ -20,7 +20,7 @@ use std::{
 };
 
 use events::{InitializeEvent, SetImageEvent, SetOwnerEvent};
-use types::structs::AssetInfo;
+use structs::AssetInfo;
 
 configurable {
     MAX_SUPPLY: u64 = 1_000_000_000,
@@ -33,7 +33,7 @@ storage {
     initialized: bool = false,
     image: StorageString = StorageString{},
     total_supply: u64 = 0,
-    owner: State = State::Uninitialized,
+    owner: State = State::Uninitialized, // Launchpad Contract
 }
 
 
@@ -146,6 +146,7 @@ impl CinderToken for Contract {
     #[storage(read, write)]
     fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
         require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
+        require(msg_sender().unwrap() == storage.owner.read().unwrap(), "Not authorized");
 
         let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
         let current_supply = storage.total_supply.read();
@@ -163,6 +164,7 @@ impl CinderToken for Contract {
         require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
         require(msg_amount() >= amount, "Incorrect amount provided");
         require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
+        require(msg_sender().unwrap() == storage.owner.read().unwrap(), "Not authorized");
 
         let current_supply = storage.total_supply.read();
         let new_supply = current_supply - amount;
