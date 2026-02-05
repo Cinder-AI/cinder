@@ -1,13 +1,13 @@
 contract;
 
 pub mod events;
-pub mod structs;
 
 use src3::{SRC3};
 use src7::{SRC7, Metadata, SetMetadataEvent};
 use src20::{SRC20, TotalSupplyEvent, SetNameEvent, SetSymbolEvent, SetDecimalsEvent};
 use src5::{SRC5, State};
 use types::cinder::CinderToken;
+use types::structs::TokenInfo;
 
 use std::{
     asset::{burn, mint_to},
@@ -20,7 +20,6 @@ use std::{
 };
 
 use events::{InitializeEvent, SetImageEvent, SetOwnerEvent};
-use structs::AssetInfo;
 
 configurable {
     MAX_SUPPLY: u64 = 1_000_000_000,
@@ -145,8 +144,8 @@ impl CinderToken for Contract {
 
     #[storage(read, write)]
     fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
+        storage.owner.only_owner();
         require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
-        require(msg_sender().unwrap() == storage.owner.read().unwrap(), "Not authorized");
 
         let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
         let current_supply = storage.total_supply.read();
@@ -164,7 +163,6 @@ impl CinderToken for Contract {
         require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
         require(msg_amount() >= amount, "Incorrect amount provided");
         require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
-        require(msg_sender().unwrap() == storage.owner.read().unwrap(), "Not authorized");
 
         let current_supply = storage.total_supply.read();
         let new_supply = current_supply - amount;
@@ -189,17 +187,17 @@ impl CinderToken for Contract {
     }
 
     #[storage(read)]
-    fn asset_info(asset: AssetId) -> AssetInfo {
+    fn asset_info(asset: AssetId) -> TokenInfo {
         let name = String::from_ascii_str(from_str_array(NAME));
         let symbol = String::from_ascii_str(from_str_array(SYMBOL));
         let decimals = DECIMALS;
         let image = storage.image.read_slice().unwrap_or(String::from_ascii_str(""));
-        AssetInfo {
+        TokenInfo {
             asset,
-            name,
-            symbol,
-            decimals,
-            image,
+            name: name,
+            symbol: symbol,
+            decimals: decimals,
+            image: image,
         }
     }
 

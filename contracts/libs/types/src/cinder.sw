@@ -5,7 +5,7 @@ use std::{
 };
 use src7::Metadata;
 use src5::State;
-use ::structs::{AssetInfo};
+use ::structs::{TokenInfo};
 
 abi CinderToken {
     #[storage(read, write)]
@@ -51,5 +51,5 @@ abi CinderToken {
     fn default_asset() -> AssetId;
 
     #[storage(read)]
-    fn asset_info(asset: AssetId) -> AssetInfo;
+    fn asset_info(asset: AssetId) -> TokenInfo;
 }

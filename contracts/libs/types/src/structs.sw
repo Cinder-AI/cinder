@@ -9,6 +9,7 @@ pub struct TokenInfo {
     pub name: String,
     pub ticker: String,
     pub description: String,
+    pub decimals: u8,
     pub image: String,
 }
 
