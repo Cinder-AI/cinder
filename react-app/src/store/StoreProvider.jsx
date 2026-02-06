@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
-import { createDefaultState, calculateNextTokenId } from './defaultData'
+import { createDefaultState, calculateNextTokenId, SYSTEM_TOKENS } from './defaultData'
+import { indexerGraphQL } from '../services/indexerGraphQL.ts'
 
 const STORAGE_KEY = 'cinderStoreData'
 
@@ -9,10 +10,12 @@ function reviveState(raw) {
   if (!raw) return null
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
   if (data && data.userHoldings && typeof data.userHoldings === 'object' && !(data.userHoldings instanceof Map)) {
-    data.userHoldings = new Map(Object.entries(data.userHoldings).map(([k, v]) => [Number(k), v]))
+    data.userHoldings = new Map(Object.entries(data.userHoldings))
   }
+  const defaults = createDefaultState()
+  data.tokens = defaults.tokens
+  data.leaderboardTokens = defaults.leaderboardTokens
   if (!data.nextTokenId) data.nextTokenId = calculateNextTokenId(data.tokens || [])
-  if (!data.leaderboardTokens) data.leaderboardTokens = createDefaultState().leaderboardTokens
   return data
 }
 
@@ -45,6 +48,37 @@ const applyPledge = (tokens, tokenId, amount) =>
 
 const applyLaunch = (tokens, tokenId) =>
   tokens.map(token => (token.id === tokenId ? { ...token, status: 'launched' } : token))
+
+const buildCampaignTokens = (campaigns) =>
+  campaigns.map((campaign, idx) => {
+    const target = BigInt(campaign.target || '0')
+    const totalPledged = BigInt(campaign.total_pledged || '0')
+    const progress = target > 0n ? Number((totalPledged * 100n) / target) : 0
+    const shortId = campaign.id?.slice?.(0, 6) || String(idx)
+    const status = (campaign.status || 'active').toLowerCase()
+    const image = campaign.token_image || campaign.image || ''
+    const name = campaign.token_name || `Campaign ${shortId}`
+    const ticker = campaign.token_ticker || `#${shortId}`
+
+    return {
+      id: campaign.id,
+      name,
+      ticker,
+      description: campaign.token_description || '',
+      image,
+      creator: campaign.creator_id || 'unknown',
+      isSystemToken: false,
+      status,
+      assetId: campaign.token_asset_id || campaign.id,
+      subId: '0x',
+      totalPledged: Number(totalPledged),
+      totalSupply: 0,
+      target: Number(target),
+      progress,
+      timeAgo: 'just now',
+      tokenDecimals: campaign.token_decimals,
+    }
+  })
 
 function reducer(state, action) {
   switch (action.type) {
@@ -121,6 +155,25 @@ export function StoreProvider({ children }) {
   })
 
   // useEffect(() => { persistState(state) }, [state])
+  useEffect(() => {
+    let cancelled = false
+    const loadCampaigns = async () => {
+      try {
+        const campaigns = await indexerGraphQL.getCampaigns()
+        if (cancelled) return
+        const tokens = [...SYSTEM_TOKENS, ...buildCampaignTokens(campaigns)]
+        dispatch({ type: ACTIONS.GET_TOKEN, payload: tokens })
+      } catch (error) {
+        console.error('Failed to load campaigns from indexer:', error)
+      }
+    }
+
+    loadCampaigns()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const api = useMemo(() => ({
     state,
@@ -138,6 +191,7 @@ export function StoreProvider({ children }) {
       return list
     },
     addToken: (tokenData) => dispatch({ type: ACTIONS.ADD_TOKEN, payload: tokenData }),
+    setTokens: (tokens) => dispatch({ type: ACTIONS.GET_TOKEN, payload: tokens }),
     buyToken: (tokenId, amount, value) => dispatch({ type: ACTIONS.BUY_TOKEN, payload: { tokenId, amount, value } }),
     sellToken: (tokenId) => dispatch({ type: ACTIONS.SELL_TOKEN, payload: { tokenId } }),
     getUserBalance: () => state.user.balance,
@@ -148,6 +202,11 @@ export function StoreProvider({ children }) {
     launchLeaderboardCampaign: (tokenId) => dispatch({ type: ACTIONS.LAUNCH_CAMPAIGN_LEADERBOARD, payload: { tokenId } }),
     resetLeaderboardTokens: () => dispatch({ type: ACTIONS.RESET_LEADERBOARD }),
     clearData: () => dispatch({ type: ACTIONS.CLEAR_DATA }),
+    refreshCampaigns: async () => {
+      const campaigns = await indexerGraphQL.getCampaigns()
+      const tokens = [...SYSTEM_TOKENS, ...buildCampaignTokens(campaigns)]
+      dispatch({ type: ACTIONS.GET_TOKEN, payload: tokens })
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [state])
 
