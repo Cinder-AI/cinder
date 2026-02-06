@@ -5,9 +5,13 @@ import { AmountSelector } from '../components/AmountSelector.jsx'
 import { BottomSheet } from '../components/BottomSheet.jsx'
 import { CoinCreatedNotification } from '../components/notifications/CoinCreatedNotification.jsx'
 import { useStore } from '../store/StoreProvider.jsx'
+import { useContracts } from '../hooks/useContracts.tsx'
 
 export function CreateTokenPage() {
-  const { addToken } = useStore()
+  const { refreshCampaigns } = useStore()
+  const contracts = useContracts()
+  const launchpad = contracts?.launchpad
+  const storageBaseUrl = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000'
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
@@ -16,6 +20,7 @@ export function CreateTokenPage() {
   const [imageData, setImageData] = useState(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [createdToken, setCreatedToken] = useState(null)
+  const [isCreating, setIsCreating] = useState(false)
   const fileInputRef = useRef(null)
 
   function onFile(file) {
@@ -26,12 +31,49 @@ export function CreateTokenPage() {
     reader.readAsDataURL(file)
   }
 
-  function handleCreate() {
+  function resolveStorageUrl(path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path
+    const prefix = path.startsWith('/') ? '' : '/'
+    return `${storageBaseUrl}${prefix}${path}`
+  }
+
+  async function uploadImage(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await fetch(`${storageBaseUrl}/upload`, {
+      method: 'POST',
+      body: formData
+    })
+    if (!response.ok) {
+      const message = await response.text().catch(() => '')
+      throw new Error(message || 'Image upload failed')
+    }
+    const data = await response.json()
+    return resolveStorageUrl(data.url || '')
+  }
+
+  async function handleCreate() {
     if (!name || !ticker) return alert('Please fill in coin name and ticker')
+    if (!imageData) return alert('Please select an image')
+    if (!launchpad) return alert('Connect wallet to create a campaign')
+    if (isCreating) return
+    setIsCreating(true)
+    const file = fileInputRef.current?.files?.[0]
+    if (!file) {
+      setIsCreating(false)
+      return alert('Please select an image')
+    }
+    let imageUrl = ''
+    try {
+      imageUrl = await uploadImage(file)
+    } catch (error) {
+      setIsCreating(false)
+      return alert(error?.message || 'Failed to upload image')
+    }
     const token = {
       name: name,
       description: description,
-      image: imageData || 'assets/WAIFU.png',
+      image: imageUrl,
       ticker: ticker,
       progress: 0,
       creator: 'user',
@@ -44,9 +86,22 @@ export function CreateTokenPage() {
       totalSupply: 0,
       target: 1000000
     }
-    addToken(token)
-    setCreatedToken(token)
-    setSheetOpen(true)
+    try {
+      const { waitForResult } = await launchpad.functions
+        .create_campaign(name.trim(), ticker.trim(), description ?? '', imageUrl)
+        .call()
+      const { value: assetId } = await waitForResult()
+      const created = { ...token, assetId: assetId?.bits || '' }
+      setCreatedToken(created)
+      refreshCampaigns().catch((error) => {
+        console.error('Failed to refresh campaigns:', error)
+      })
+      setSheetOpen(true)
+    } catch (error) {
+      alert(error?.message || 'Failed to create campaign')
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -85,7 +140,7 @@ export function CreateTokenPage() {
       </div>
 
       <div className="create-button-container">
-        <Button type="buy" label="Create coin" onClick={handleCreate} />
+        <Button type="buy" label={isCreating ? 'Creating...' : 'Create coin'} onClick={handleCreate} />
       </div>
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
