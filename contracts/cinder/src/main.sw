@@ -144,7 +144,7 @@ impl CinderToken for Contract {
 
     #[storage(read, write)]
     fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
-        storage.owner.only_owner();
+        require_owner();
         require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
 
         let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
@@ -160,6 +160,7 @@ impl CinderToken for Contract {
 
     #[storage(read, write), payable]
     fn burn(sub_id: SubId, amount: u64) {
+        require_owner();
         require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
         require(msg_amount() >= amount, "Incorrect amount provided");
         require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
@@ -193,9 +194,10 @@ impl CinderToken for Contract {
         let decimals = DECIMALS;
         let image = storage.image.read_slice().unwrap_or(String::from_ascii_str(""));
         TokenInfo {
-            asset,
+            asset_id: asset,
             name: name,
-            symbol: symbol,
+            ticker: symbol,
+            description: String::from_ascii_str(""),
             decimals: decimals,
             image: image,
         }
@@ -206,5 +208,17 @@ impl CinderToken for Contract {
         storage.image.write_slice(image);
         
         SetImageEvent::new(AssetId::default(), Some(image), msg_sender().unwrap()).log();
+    }
+}
+
+#[storage(read)]
+fn require_owner() {
+    match storage.owner.read() {
+        State::Initialized(owner) => {
+            require(owner == msg_sender().unwrap(), "Not owner");
+        }
+        _ => {
+            require(false, "Owner not initialized");
+        }
     }
 }

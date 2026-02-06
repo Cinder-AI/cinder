@@ -1,4 +1,5 @@
 library;
+use types::structs::TokenInfo;
 
 use std::{
     identity::Identity,
@@ -10,6 +11,7 @@ pub struct CampaignCreatedEvent {
     pub creator: Identity,
     pub sub_id: SubId,
     pub target: u64,
+    pub token_info: TokenInfo,
 }
 
 pub struct CampaignDeniedEvent {

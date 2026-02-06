@@ -73,6 +73,7 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
     let ticker = storage.ticker.get(asset_id).read_slice().unwrap();
     let description = storage.description.get(asset_id).read_slice().unwrap();
     let image = storage.image.get(asset_id).read_slice().unwrap();
+    let decimals = storage.decimals.get(asset_id).try_read().unwrap_or(9);
     
     TokenInfo {
         asset_id: asset_id,
@@ -80,6 +81,7 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
         ticker: ticker,
         description: description,
         image: image,
+        decimals: decimals,
     }
 }
 
@@ -158,6 +160,7 @@ impl Launchpad for Contract {
             creator: sender,
             sub_id,
             target: MIGRATION_TARGET,
+            token_info: read_token_info(asset_id),
         });
         asset_id
     }
@@ -172,7 +175,7 @@ impl Launchpad for Contract {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
-        
+        let sender = msg_sender().unwrap();
         campaign.status = CampaignStatus::Failed;
         storage.campaigns.insert(asset_id, campaign);
         log(CampaignDeniedEvent {
