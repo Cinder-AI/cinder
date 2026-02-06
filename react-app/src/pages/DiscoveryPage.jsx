@@ -232,6 +232,7 @@ export function DiscoveryPage() {
 
   const next = () => {
     setCurrentIndex(i => {
+      if (!tokens.length) return 0
       const newIndex = (i + 1) % tokens.length
       // Reset any lingering styles on cards after a small delay
       setTimeout(() => {
@@ -248,6 +249,7 @@ export function DiscoveryPage() {
 
   // Helper to get next token with wraparound
   const getNextToken = () => {
+    if (!tokens.length) return null
     const nextIdx = (currentIndex + 1) % tokens.length
     return tokens[nextIdx]
   }
