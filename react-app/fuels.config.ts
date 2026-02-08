@@ -4,7 +4,7 @@ export default createConfig({
   contracts: [
         '../contracts/launchpad',
         '../contracts/cinder',
-        '../contracts/amm',
+        '../contracts/fuel',
   ],
   output: './src/sway-api',
 });

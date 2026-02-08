@@ -5,22 +5,22 @@ export type DappEnvironment = 'local' | 'testnet' | 'mainnet';
 export type ContractIds = {
   CINDER: string;
   LAUNCHPAD: string;
-  AMM: string;
+  FUEL: string;
 };
 
 const env = (appEnvironment ?? 'local') as DappEnvironment;
 
 const TESTNET: ContractIds = {
-  CINDER: '0x115267bb2105aaac59cc04955c5995779f9eeb0fac2f8dafe521ec88b97fc7a2',
-  LAUNCHPAD: '0x662cbc18c3548deb39a636a2de037e3eea570208a4de3f092065663a1e7db170',
-  AMM: '0x55e8ddcf8c654f1d211e980a2437af0be1ea47ef878ec77fb70d7c82afa21fcf',
+  CINDER: '0x4422903b2ebbd43b3ae32ad9b6d0802fa19ab88903d61b429d5771a36fa51286',
+  LAUNCHPAD: '0x59d4475501eb74ebfc1afdf58ee7fb5d641dcbc5058f354bd99b4b61c93658f5',
+  FUEL: '0xbff9e01a89b8563f453c3ca7a4e1ea0f87b90e48cd30df613978d4a4f0caaf4e',
 };
 
 // Заполни, когда будут mainnet-деплои.
 const MAINNET: ContractIds = {
   CINDER: '',
   LAUNCHPAD: '',
-  AMM: '',
+  FUEL: '',
 };
 
 type LocalRegistry = {
@@ -46,7 +46,7 @@ async function loadLocalFromPublicJson(): Promise<ContractIds> {
 
   const json = (await res.json()) as LocalRegistry;
 
-  const get = (name: 'cinder' | 'launchpad' | 'amm') => {
+  const get = (name: 'cinder' | 'launchpad' | 'fuel') => {
     const id = json.contracts?.[name]?.contract_id;
     if (!id) throw new Error(`В registry нет contract_id для "${name}"`);
     return id;
@@ -55,7 +55,7 @@ async function loadLocalFromPublicJson(): Promise<ContractIds> {
   return {
     CINDER: get('cinder'),
     LAUNCHPAD: get('launchpad'),
-    AMM: get('amm'),
+    FUEL: get('fuel'),
   };
 }
 
