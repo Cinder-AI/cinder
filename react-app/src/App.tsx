@@ -13,6 +13,7 @@ import { TokenDetailsPage } from './pages/TokenDetailsPage.jsx'
 import { ChatPage } from './pages/ChatPage.jsx'
 import { LeaderboardPage } from './pages/LeaderboardPage.jsx'
 import { BackgroundPage } from './pages/BackgroundPage.tsx'
+import { ContractTest } from './pages/ContractTest.tsx'
 
 function WithLayout({ children }) {
   const { pathname } = useLocation()
@@ -39,6 +40,7 @@ export default function App() {
         <Route path={ROUTES.chat.path} element={<WithLayout><ChatPage /></WithLayout>} />
         <Route path={ROUTES.leaderboard.path} element={<WithLayout><LeaderboardPage /></WithLayout>} />
         <Route path={ROUTES.background.path} element={<BackgroundPage />} />
+        <Route path={ROUTES.test.path} element={<WithLayout><ContractTest /></WithLayout>} />
         <Route path="*" element={<Navigate to={ROUTES.discovery.path} replace />} />
       </Routes>
     </BrowserRouter>

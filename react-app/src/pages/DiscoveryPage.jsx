@@ -13,7 +13,7 @@ import { Airdrop } from '../components/Airdrop.tsx'
 import { getContracts } from '../config/contracts.ts'
 import { Cinder } from '../sway-api/contracts/Cinder.ts'
 import { Launchpad } from '../sway-api/contracts/Launchpad.ts'
-import { Amm } from '../sway-api/contracts/Amm.ts'
+import { Fuel } from '../sway-api/contracts/Fuel.ts'
 
 import { formatNumber } from '../utils/index.ts'
 import { testCinderContract } from '../utils/test_cinder_contract.ts'
@@ -31,7 +31,7 @@ export function DiscoveryPage() {
   const { wallet } = useWallet();
   const [cinderContract, setContract] = useState(null);
   const [launchpadContract, setLaunchpadContract] = useState(null);
-  const [ammContract, setAmmContract] = useState(null);
+  const [fuelContract, setFuelContract] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [amount, setAmount] = useState(0);
   const tokens = useMemo(() => getTokens().filter(t => !t.isSystemToken), [getTokens]);
@@ -54,54 +54,9 @@ export function DiscoveryPage() {
   const passButtonRef = useRef(null);
   const swipeControls = useMemo(() => ({ buy: buyButtonRef, pass: passButtonRef }), [buyButtonRef, passButtonRef]);
   
-  
   const [balance, setBalance] = useState(250000);
-  
-
   const deadToken = getTokenByName('BERT');
   const livingToken = getTokenByName('WaiFU');
-
-  const getTotalAssets = async () => {
-    try {
-      if (contract) {
-        const { value } = await contract.functions.total_assets().get();
-        const totalAssets = value.toNumber();
-        console.log("totalAssets", totalAssets);
-      } else {
-        console.log("No contract");
-      }
-    } catch (error) {
-      console.error("Error getting total assets:", error);
-    }
-  }
-
-  const getAssetId = async () => {
-    const { value } = await contract.functions.default_asset().get();
-    console.log("assetId", value); // { bits: "0x..." }
-    return value; // Возвращаем весь объект AssetId
-  }
-
-  const createTestCampaigns = async () => {
-    tokens.map(async (token) => {
-      
-    })
-  }
-  
-  const getTokenInfo = async (assetId) => {
-    // assetId уже в правильном формате { bits: "0x..." }
-    const { value } = await contract.functions.asset_info(assetId).get();
-    console.log("metadata value", value); // Option<Metadata>
-    
-    // Проверяем что value не None
-    if (value) {
-      console.log("tokenInfo", value);
-      return value;
-    } else {
-      console.log("No metadata found");
-      return null;
-    }
-  }
-
 
   useEffect(() => {
     setTimeout(() => {
@@ -124,7 +79,7 @@ export function DiscoveryPage() {
 
       setContract(new Cinder(ids.CINDER, wallet));
       setLaunchpadContract(new Launchpad(ids.LAUNCHPAD, wallet));
-      setAmmContract(new Amm(ids.AMM, wallet));
+      setFuelContract(new Fuel(ids.FUEL, wallet));
     })().catch((e) => {
       console.error('Failed to init contracts:', e);
     });
@@ -133,23 +88,6 @@ export function DiscoveryPage() {
       cancelled = true;
     };
   }, [wallet]);
-
-  useEffect(() => {
-    const fetchAssets = async () => {
-      console.log("balances", balances);
-      console.log(tokens);
-      if (cinderContract && launchpadContract && ammContract && wallet) {
-  
-        // const { value: assets } = await launchpadContract.functions.get_assets().get();
-        // console.log("assets", assets);
-  
-        // testCinderContract(cinderContract, wallet);
-        // testLaunchpadContract(launchpadContract, ammContract, wallet);
-      }
-
-    }
-    fetchAssets();
-  }, [cinderContract, launchpadContract, ammContract, wallet]);
 
   useLayoutEffect(() => {
     const currentToken = tokens[currentIndex];
@@ -256,16 +194,50 @@ export function DiscoveryPage() {
 
   const pledge = async (tokenId, amount) => {
     const token = getToken(tokenId);
-    console.log("token", token);
+    if (!token) {
+      console.error('Token not found for pledge:', tokenId);
+      return false;
+    }
+    if (!launchpadContract || !wallet?.provider) {
+      console.error('Launchpad contract or wallet is not ready');
+      return false;
+    }
+    if (!amount || amount <= 0) {
+      console.error('Invalid pledge amount:', amount);
+      return false;
+    }
+
+    const assetBits = token.assetId || token.id;
+    if (!assetBits) {
+      console.error('Token asset id is missing:', token);
+      return false;
+    }
+
     const amountBefore = token.totalPledged;
-    console.log("pledging token", tokenId, amount);
     const progressBefore = token.progress;
-    console.log("progressBefore", progressBefore);
+    const amountStr = amount.toString();
+
+    try {
+      const baseAssetIdRaw = wallet.provider.getBaseAssetId?.();
+      const baseAssetId = typeof baseAssetIdRaw === 'string' ? baseAssetIdRaw : (await baseAssetIdRaw) || '';
+      console.log("baseAssetId", baseAssetId);
+      if (!baseAssetId) throw new Error('Base asset id not available');
+
+      const { waitForResult } = await launchpadContract.functions
+        .pledge({ bits: assetBits }, amountStr)
+        .callParams({ forward: { assetId: "0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8", amount: amountStr } })
+        .call();
+      const res = await waitForResult();
+      console.log("res", res);
+    } catch (error) {
+      console.error('Pledge failed:', error);
+      return false;
+    }
+
     // Вычисляем новые значения ЛОКАЛЬНО, не полагаясь на стейт
-    setBalance(balance - amount);
+    setBalance(prev => prev - amount);
     const newTotalPledged = amountBefore + amount;
     const newProgress = Math.round((newTotalPledged / token.target) * 100);
-    console.log("newProgress", newProgress);
     
     // Обновляем стейт
     addPledge(tokenId, amount);
@@ -278,16 +250,16 @@ export function DiscoveryPage() {
       const timer = setTimeout(() => {
         setShowMatch(true);
       }, 1000);
-      return () => clearTimeout(timer);
+      return true;
     }
-    return false;
+    return true;
   }
 
   const handlePledge = async () => {
     const currentToken = tokens[currentIndex];
     if (currentToken) { 
-      pledge(currentToken.id, amount);
-      next();
+      const ok = await pledge(currentToken.id, amount);
+      if (ok) next();
     }
   }
 
