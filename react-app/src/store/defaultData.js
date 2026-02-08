@@ -1,21 +1,25 @@
 export const SYSTEM_TOKENS = [
   {
-    id: 'stFUEL',
+    id: '0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8',
     name: 'stFUEL',
+    ticker: 'stFUEL',
     image: 'assets/stFUEL.png',
     creator: 'system',
     progress: 100,
     timeAgo: 'genesis',
     isSystemToken: true,
+    assetId: null,
   },
   {
     id: 'CIN',
     name: 'CIN',
+    ticker: 'CIN',
     image: 'assets/CIN.png',
     creator: 'system',
     progress: 100,
     timeAgo: 'genesis',
     isSystemToken: true,
+    assetId: null,
   },
 ]
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/StoreProvider.jsx'
 import { useConnect, useConnectUI, useIsConnected } from '@fuels/react'
+import { useBalance } from '../hooks/useBalance.tsx'
 import { useContracts } from '../hooks/useContracts.tsx'
 import { useWallet } from '@fuels/react'
 import { getContracts } from '../config/contracts.ts'
@@ -18,6 +19,7 @@ import { Fuel } from '../sway-api/contracts/Fuel.ts'
 export function Header({ title = 'Cinder', showCreate = false, showBalance = false, showBackButton = false }) {
   const navigate = useNavigate()
   const { getUserHoldings } = useStore()
+  const { balances } = useBalance()
   const [profileOpen, setProfileOpen] = useState(false)
   const { connect } = useConnectUI()
   const { _connect } = useConnect()
@@ -27,6 +29,10 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
   const contracts  = useContracts()
   const launchpadContract = contracts?.launchpad
   const [fuelContract, setFuelContract] = useState(null)
+  const cinBalance = useMemo(() => {
+    const cin = balances.find(b => b.metadata?.symbol === 'CIN' || b.metadata?.name === 'CIN')
+    return cin?.amount ?? '0'
+  }, [balances])
 
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +141,7 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
             <Button label="+ Create" type="create" className="header-create-btn" onClick={onCreateClick} />
           )}
           {isConnected && showBalance && (
-            <div className="header-balance">$CIN {balance.CIN}</div>
+            <div className="header-balance">$CIN {cinBalance}</div>
           )}
           {profile()}
         </div>

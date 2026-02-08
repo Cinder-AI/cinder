@@ -6,6 +6,9 @@ const STORAGE_KEY = 'cinderStoreData'
 
 const StoreContext = createContext(null)
 
+const normalizeTokenKey = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : ''
+
 function reviveState(raw) {
   if (!raw) return null
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
@@ -179,6 +182,16 @@ export function StoreProvider({ children }) {
     state,
     getToken: (tokenId) => state.tokens.find(t => t.id === tokenId),
     getTokenByName: (name) => state.tokens.find(t => t.name === name),
+    getTokenByTicker: (ticker) => {
+      if (!ticker) return undefined
+      const key = normalizeTokenKey(ticker)
+      return state.tokens.find(t => t.ticker && normalizeTokenKey(t.ticker) === key)
+    },
+    getTokenByAssetId: (assetId) => {
+      if (!assetId) return undefined
+      const key = normalizeTokenKey(assetId)
+      return state.tokens.find(t => t.assetId && normalizeTokenKey(t.assetId) === key)
+    },
     
     getTokens: () => state.tokens,
     getLeaderboardTokens: () => state.leaderboardTokens,
