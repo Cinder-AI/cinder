@@ -10,13 +10,22 @@ export type CampaignRecord = {
   total_pledged: string
   total_volume_base: string
   status: string
-  image?: string
   token_asset_id?: string
   token_name?: string
   token_ticker?: string
   token_description?: string
   token_decimals?: number
   token_image?: string
+}
+
+export type PledgeRecord = {
+  id: string
+  user_id: string
+  campaign_id: string
+  amount: string
+  timestamp: string
+  tx_id: string
+  block_height: string
 }
 
 class IndexerGraphQLService {
@@ -58,20 +67,39 @@ class IndexerGraphQLService {
           target
           total_pledged
           total_volume_base
-          status
-          image
-          token_asset_id
-          token_name
-          token_ticker
-          token_description
-          token_decimals
-          token_image
+          status,
+          token_asset_id,
+          token_name,
+          token_ticker,
+          token_description,
+          token_decimals,
+          token_image,
         }
       }
     `
 
     const result = await this.query<{ Campaign: CampaignRecord[] }>(query)
     return result.Campaign || []
+  }
+
+  async getUserPledges(userId: string): Promise<PledgeRecord[]> {
+    if (!userId) return []
+    const query = `
+      query Pledges($userId: String!) {
+        Pledge(where: { user_id: { _eq: $userId } }) {
+          id
+          user_id
+          campaign_id
+          amount
+          timestamp
+          tx_id
+          block_height
+        }
+      }
+    `
+
+    const result = await this.query<{ Pledge: PledgeRecord[] }>(query, { userId })
+    return result.Pledge || []
   }
 }
 
