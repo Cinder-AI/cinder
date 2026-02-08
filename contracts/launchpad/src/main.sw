@@ -37,13 +37,14 @@ use types::structs::{TokenInfo, Pledge};
 use src20::{TotalSupplyEvent, SRC20};
 use src3::SRC3;
 use src7::SRC7;
+use src5::{SRC5, State};
 
 configurable {
     MIGRATION_TARGET: u64 = 1_000_000,
     INITIAL_SUPPLY: u64 = 1_000_000_000,
-    MAX_PLEDGE_AMOUNT: u64 = 20_000,
-    PLEDGE_ASSET_ID: b256 = 0x0000000000000000000000000000000000000000000000000000000000000000,
+    PLEDGE_ASSET_ID: b256 = 0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8,
     CURVE_SUPPLY_PERCENT: u64 = 80,
+    INSTANT_LAUNCH_THRESHOLD_PERCENT: u64 = 80,
 }
 
 storage {
@@ -57,6 +58,7 @@ storage {
     assets: StorageVec<AssetId> = StorageVec {},
     campaigns: StorageMap<AssetId, Campaign> = StorageMap {},
     campaign_counter: u64 = 0,
+    owner: State = State::Uninitialized,
 }
 
 fn pledge_asset_id() -> AssetId {
@@ -65,6 +67,59 @@ fn pledge_asset_id() -> AssetId {
     } else {
         AssetId::from(PLEDGE_ASSET_ID)
     }
+}
+
+#[storage(read)]
+fn require_owner() {
+    match storage.owner.read() {
+        State::Initialized(owner) => {
+            require(owner == msg_sender().unwrap(), "Not owner");
+        },
+        _ => {
+            require(false, "Owner not initialized");
+        }
+    }
+}
+
+impl SRC5 for  Contract {
+    #[storage(read)]
+    fn owner() -> State {
+        storage.owner.read()
+    }
+}
+
+fn is_instant_launch_ready(total_pledged: u64) -> bool {
+    total_pledged >= MIGRATION_TARGET * INSTANT_LAUNCH_THRESHOLD_PERCENT / 100
+}
+
+#[storage(read, write)]
+fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
+    let mut campaign = campaign;
+    require(campaign.status == CampaignStatus::Active, "Not active");
+    require(campaign.total_pledged > 0, "No pledges");
+
+    let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
+    let amm_supply = INITIAL_SUPPLY - curve_supply;
+
+    let users_share = curve_supply * campaign.total_pledged / MIGRATION_TARGET;
+    let remaining_supply = curve_supply - users_share;
+    require(users_share <= curve_supply, "User share exceeds curve supply");
+
+    campaign.curve.initialize(campaign.total_pledged, users_share);
+    mint(campaign.sub_id, remaining_supply);
+    mint(campaign.sub_id, amm_supply);
+    campaign.amm_reserved = amm_supply;
+    campaign.status = CampaignStatus::Launched;
+    storage.campaigns.insert(asset_id, campaign);
+    log(CampaignLaunchedEvent {
+        asset_id,
+        sender,
+        users_share,
+        remaining_supply,
+        amm_supply,
+    });
+
+    true
 }
 
 #[storage(read)]
@@ -86,6 +141,18 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
 }
 
 impl Launchpad for Contract {
+
+    #[storage(read, write)]
+    fn initialize(owner: Identity) {
+        require(storage.owner.read() == State::Uninitialized, "Contract already initialized");
+        storage.owner.write(State::Initialized(owner));
+    }
+
+    #[storage(read, write)]
+    fn set_owner(owner: Identity) {
+        require_owner();
+        storage.owner.write(State::Initialized(owner));
+    }
 
     #[storage(read)]
     /// Returns metadata for all created assets.
@@ -172,6 +239,7 @@ impl Launchpad for Contract {
     fn deny_campaign(
         asset_id: AssetId,
     ) -> bool {
+        require_owner();
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
@@ -192,6 +260,7 @@ impl Launchpad for Contract {
     fn delete_campaign(
         asset_id: AssetId,
     ) -> bool {
+        require_owner();
         let sender = msg_sender().unwrap();
 
         let _ = delete_name(storage.name, asset_id);
@@ -212,37 +281,12 @@ impl Launchpad for Contract {
 
     #[storage(read, write)]
     /// Launches a campaign: initializes curve, mints full supply to contract.
-    /// Requires creator and at least one pledge.
+    /// Owner-only; campaign must be active and have pledges.
     fn launch_campaign(asset_id: AssetId) -> bool {
-        let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+        require_owner();
         let sender = msg_sender().unwrap();
-        
-        require(campaign.status == CampaignStatus::Active, "Not active");
-        require(campaign.creator == sender, "Only creator can launch");
-        require(campaign.total_pledged > 0, "No pledges");
-        
-        let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
-        let amm_supply = INITIAL_SUPPLY - curve_supply;
-
-        let users_share = curve_supply * campaign.total_pledged / MIGRATION_TARGET;
-        let remaining_supply = curve_supply - users_share;
-        require(users_share <= curve_supply, "User share exceeds curve supply");
-
-        campaign.curve.initialize(campaign.total_pledged, users_share);
-        mint(campaign.sub_id, remaining_supply);
-        mint(campaign.sub_id, amm_supply);
-        campaign.amm_reserved = amm_supply;
-        campaign.status = CampaignStatus::Launched;
-        storage.campaigns.insert(asset_id, campaign);
-        log(CampaignLaunchedEvent {
-            asset_id,
-            sender,
-            users_share,
-            remaining_supply,
-            amm_supply,
-        });
-
-        true
+        let campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+        do_launch(asset_id, campaign, sender)
     }
 
     #[storage(read, write)]
@@ -414,7 +458,7 @@ impl Launchpad for Contract {
         match found_index {
             Some(index) => {
                 let new_total = current_amount + amount;
-                require(new_total <= MAX_PLEDGE_AMOUNT, "Total pledge exceeds MAX_PLEDGE_AMOUNT");
+                // require(new_total <= MAX_PLEDGE_AMOUNT, "Total pledge exceeds MAX_PLEDGE_AMOUNT");
                 
                 let updated_pledge = Pledge {
                     amount: new_total,
@@ -425,7 +469,7 @@ impl Launchpad for Contract {
                 pledges_vec.set(index, updated_pledge);
             },
             None => {
-                require(amount <= MAX_PLEDGE_AMOUNT, "Amount exceeds MAX_PLEDGE_AMOUNT");
+                // require(amount <= MAX_PLEDGE_AMOUNT, "Amount exceeds MAX_PLEDGE_AMOUNT");
                 
                 let new_pledge = Pledge {
                     amount,
@@ -438,7 +482,11 @@ impl Launchpad for Contract {
         }
         
         campaign.total_pledged += amount;
-        storage.campaigns.insert(asset_id, campaign);
+        if is_instant_launch_ready(campaign.total_pledged) {
+            do_launch(asset_id, campaign, sender);
+        } else {
+            storage.campaigns.insert(asset_id, campaign);
+        }
         log(PledgedEvent {
             asset_id,
             sender,

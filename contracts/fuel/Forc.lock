@@ -1,14 +1,11 @@
 [[package]]
-name = "launchpad"
+name = "fuel"
 source = "member"
 dependencies = [
     "src20",
     "src3",
     "src5",
-    "src7",
     "std",
-    "types",
-    "utils",
 ]
 
 [[package]]
@@ -30,28 +27,6 @@ source = "registry+src5?0.8.1#QmcUKCMFWYYpGzqSxZFn3d97MhQ9RAiEMoQGWjVE2AmMFN!"
 dependencies = ["std"]
 
 [[package]]
-name = "src7"
-version = "0.8.1"
-source = "registry+src7?0.8.1#QmfGnm1jMVLTgG7NgE5vVC4j2ngvbhgbqct7bAYaQjSAsq!"
-dependencies = ["std"]
-
-[[package]]
 name = "std"
 version = "0.70.1"
 source = "registry+std?0.70.1#QmU7w9Aqa6jvQcj72HS8uqfFk3ieiC74WsZGaRfUrW1u41!"
-
-[[package]]
-name = "types"
-source = "path+from-root-6CB957643257C0CF"
-dependencies = [
-    "src20",
-    "src3",
-    "src5",
-    "src7",
-    "std",
-]
-
-[[package]]
-name = "utils"
-source = "path+from-root-6CB957643257C0CF"
-dependencies = ["std"]
