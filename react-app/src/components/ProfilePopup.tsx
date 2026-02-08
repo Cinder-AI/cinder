@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDisconnect } from '@fuels/react'
 import { Button } from './Button.jsx'
 
 interface ProfilePopupProps {
@@ -9,6 +10,7 @@ interface ProfilePopupProps {
 
 export function ProfilePopup({ isOpen, onClose }: ProfilePopupProps) {
   const navigate = useNavigate()
+  const { disconnect } = useDisconnect()
   const popupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -28,8 +30,9 @@ export function ProfilePopup({ isOpen, onClose }: ProfilePopupProps) {
     localStorage.removeItem('isLoggedIn')
     localStorage.removeItem('userEmail')
     localStorage.removeItem('userData')
+    disconnect()
     onClose()
-    navigate('/start')
+    navigate('/discovery')
     closePopup()
   }
 
