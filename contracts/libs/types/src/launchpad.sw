@@ -64,4 +64,11 @@ abi Launchpad {
 
     #[storage(read, write), payable]
     fn mint(recipient: Identity, sub_id: SubId, amount: u64);
+
+    #[storage(read, write)]
+    fn initialize(owner: Identity);
+
+    #[storage(read, write)]
+    fn set_owner(owner: Identity);
+
 }
