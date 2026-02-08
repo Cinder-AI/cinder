@@ -1,0 +1,203 @@
+type User {
+  id: ID!
+  first_seen_at: BigInt!
+  last_seen_at: BigInt!
+  total_actions: BigInt!
+  total_volume_base: BigInt!
+}
+
+type Campaign {
+  id: ID!
+  creator_id: String!
+  created_at: BigInt!
+  target: BigInt!
+  total_pledged: BigInt!
+  total_volume_base: BigInt!
+  status: String!
+  token_asset_id: String!
+  token_name: String!
+  token_ticker: String!
+  token_description: String!
+  token_decimals: Int!
+  token_image: String!
+  image: String!
+}
+
+type Trade {
+  id: ID!
+  user_id: String!
+  campaign_id: String!
+  side: String!
+  amount_token: BigInt!
+  amount_base: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
+type Pledge {
+  id: ID!
+  user_id: String!
+  campaign_id: String!
+  amount: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
+type DailyStats {
+  id: ID!
+  date_start: BigInt!
+  unique_users: BigInt!
+  total_actions: BigInt!
+  total_volume_base: BigInt!
+  liquidity_end_base: BigInt!
+  liquidity_change_base: BigInt!
+}
+
+type UserDayActivity {
+  id: ID!
+  user_id: String!
+  day_id: String!
+  first_seen_at: BigInt!
+}
+
+type CampaignDailyStats {
+  id: ID!
+  campaign_id: String!
+  day_id: String!
+  date_start: BigInt!
+  unique_users: BigInt!
+  total_actions: BigInt!
+  total_volume_base: BigInt!
+  liquidity_end_base: BigInt!
+  liquidity_change_base: BigInt!
+}
+
+type CampaignUserDayActivity {
+  id: ID!
+  campaign_id: String!
+  user_id: String!
+  day_id: String!
+  first_seen_at: BigInt!
+}
+
+type Cinder_SetImageEvent {
+  id: ID!
+}
+
+type Cinder_StrLog {
+  id: ID!
+}
+
+type Cinder_SetNameEvent {
+  id: ID!
+}
+
+type Cinder_SetDecimalsEvent {
+  id: ID!
+}
+
+type Cinder_SetSymbolEvent {
+  id: ID!
+}
+
+type Cinder_InitializeEvent {
+  id: ID!
+}
+
+type Cinder_SetOwnerEvent {
+  id: ID!
+}
+
+type Cinder_TotalSupplyEvent {
+  id: ID!
+}
+
+type Cinder_Transfer {
+  id: ID!
+}
+
+type Cinder_Mint {
+  id: ID!
+}
+
+type Cinder_Burn {
+  id: ID!
+}
+
+type Cinder_Call {
+  id: ID!
+}
+
+type Launchpad_CampaignLaunchedEvent {
+  id: ID!
+}
+
+type Launchpad_BuyEvent {
+  id: ID!
+}
+
+type Launchpad_TotalSupplyEvent {
+  id: ID!
+}
+
+type Launchpad_MintEvent {
+  id: ID!
+}
+
+type Launchpad_CampaignCreatedEvent {
+  id: ID!
+}
+
+type Launchpad_PledgedEvent {
+  id: ID!
+}
+
+type Launchpad_SellEvent {
+  id: ID!
+}
+
+type Launchpad_ClaimEvent {
+  id: ID!
+}
+
+type Launchpad_SetNameEvent {
+  id: ID!
+}
+
+type Launchpad_SetSymbolEvent {
+  id: ID!
+}
+
+type Launchpad_CampaignDeniedEvent {
+  id: ID!
+}
+
+type Launchpad_SetDecimalsEvent {
+  id: ID!
+}
+
+type Launchpad_StrLog {
+  id: ID!
+}
+
+type Launchpad_CampaignDeletedEvent {
+  id: ID!
+}
+
+type Launchpad_Transfer {
+  id: ID!
+}
+
+type Launchpad_Mint {
+  id: ID!
+}
+
+type Launchpad_Burn {
+  id: ID!
+}
+
+type Launchpad_Call {
+  id: ID!
+}

@@ -1,0 +1,1306 @@
+{
+  "programType": "contract",
+  "specVersion": "1.2",
+  "encodingVersion": "1",
+  "concreteTypes": [
+    {
+      "type": "()",
+      "concreteTypeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+    },
+    {
+      "type": "b256",
+      "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+    },
+    {
+      "type": "bool",
+      "concreteTypeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
+    },
+    {
+      "type": "enum std::identity::Identity",
+      "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
+      "metadataTypeId": 0
+    },
+    {
+      "type": "str",
+      "concreteTypeId": "8c25cb3686462e9a86d2883c5688a22fe738b0bbc85f458d2d2b5f3f667c6d5a"
+    },
+    {
+      "type": "struct events::BuyEvent",
+      "concreteTypeId": "e5d3acecd2b71db2d42a1508d1d48ac751330f307d256d8894db211c23c2815a",
+      "metadataTypeId": 5
+    },
+    {
+      "type": "struct events::CampaignCreatedEvent",
+      "concreteTypeId": "196902c92896561f95e35839c11957d4cb69848d385eeaa86515cbe22afbb812",
+      "metadataTypeId": 6
+    },
+    {
+      "type": "struct events::CampaignDeletedEvent",
+      "concreteTypeId": "b9daa2f992ed68411a468101279c2618f9e7ebaba34777e7ed47567c459fedab",
+      "metadataTypeId": 7
+    },
+    {
+      "type": "struct events::CampaignDeniedEvent",
+      "concreteTypeId": "b42351897d1274ab71a60107e31cb47598682fd90b67ebbe30621865d682e663",
+      "metadataTypeId": 8
+    },
+    {
+      "type": "struct events::CampaignLaunchedEvent",
+      "concreteTypeId": "c29fbe9ca18df251d732cb4f8397ab2231c817747dff2afc2a358bbc32e58f58",
+      "metadataTypeId": 9
+    },
+    {
+      "type": "struct events::ClaimEvent",
+      "concreteTypeId": "1fa0c6da5fd6fd691795bd27aadcc15cdc0280686eab924a3884591d8d82eeab",
+      "metadataTypeId": 10
+    },
+    {
+      "type": "struct events::MintEvent",
+      "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12",
+      "metadataTypeId": 11
+    },
+    {
+      "type": "struct events::PledgedEvent",
+      "concreteTypeId": "efc3ff2962ac53b0d658fef7024d9b9df649f77a5e512c743f6451d648f60ab9",
+      "metadataTypeId": 12
+    },
+    {
+      "type": "struct events::SellEvent",
+      "concreteTypeId": "78df0c9c7f494f8f480f4abfe69400be9d2bcefc0bcf14dcb1db1cae9c6e39b2",
+      "metadataTypeId": 13
+    },
+    {
+      "type": "struct src20::SetDecimalsEvent",
+      "concreteTypeId": "b6a606756ed20ecf9e047dfc134b0a9ba42ccc642956ce4205e784e82ee1daa1",
+      "metadataTypeId": 14
+    },
+    {
+      "type": "struct src20::SetNameEvent",
+      "concreteTypeId": "2c4e26d9fde4e3c732683d47b93ece2ba27aa77cc27495ea42fe5491ef144f0d",
+      "metadataTypeId": 15
+    },
+    {
+      "type": "struct src20::SetSymbolEvent",
+      "concreteTypeId": "3dc850985943a7e8e5becd967e8b8eaa26a7dec1f75a1a80ace5b3bf622b1e1a",
+      "metadataTypeId": 16
+    },
+    {
+      "type": "struct src20::TotalSupplyEvent",
+      "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba",
+      "metadataTypeId": 17
+    },
+    {
+      "type": "struct std::asset_id::AssetId",
+      "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
+      "metadataTypeId": 19
+    },
+    {
+      "type": "struct std::string::String",
+      "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c",
+      "metadataTypeId": 23
+    },
+    {
+      "type": "struct std::vec::Vec<struct types::campaign::Campaign>",
+      "concreteTypeId": "1ec264705714a469ba386512879d87a6060a454b1b43d1d9228a7bfb38020abf",
+      "metadataTypeId": 25,
+      "typeArguments": [
+        "25508f36b510e4caaa34f13132d8c5890fee213dfdc93c792b52274402720f89"
+      ]
+    },
+    {
+      "type": "struct std::vec::Vec<struct types::structs::TokenInfo>",
+      "concreteTypeId": "cea4b27422ef9bec713c723d02ee6ed5be55227cbfb2561b416abde46eb1eac6",
+      "metadataTypeId": 25,
+      "typeArguments": [
+        "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d"
+      ]
+    },
+    {
+      "type": "struct types::campaign::Campaign",
+      "concreteTypeId": "25508f36b510e4caaa34f13132d8c5890fee213dfdc93c792b52274402720f89",
+      "metadataTypeId": 27
+    },
+    {
+      "type": "struct types::structs::TokenInfo",
+      "concreteTypeId": "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d",
+      "metadataTypeId": 28
+    },
+    {
+      "type": "u64",
+      "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+    }
+  ],
+  "metadataTypes": [
+    {
+      "type": "enum std::identity::Identity",
+      "metadataTypeId": 0,
+      "components": [
+        {
+          "name": "Address",
+          "typeId": 18
+        },
+        {
+          "name": "ContractId",
+          "typeId": 22
+        }
+      ]
+    },
+    {
+      "type": "enum std::option::Option",
+      "metadataTypeId": 1,
+      "components": [
+        {
+          "name": "None",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Some",
+          "typeId": 3
+        }
+      ],
+      "typeParameters": [
+        3
+      ]
+    },
+    {
+      "type": "enum types::campaign::CampaignStatus",
+      "metadataTypeId": 2,
+      "components": [
+        {
+          "name": "Active",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Launched",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Failed",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
+      ]
+    },
+    {
+      "type": "generic T",
+      "metadataTypeId": 3
+    },
+    {
+      "type": "raw untyped ptr",
+      "metadataTypeId": 4
+    },
+    {
+      "type": "struct events::BuyEvent",
+      "metadataTypeId": 5,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "cost",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "sold_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::CampaignCreatedEvent",
+      "metadataTypeId": 6,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "creator",
+          "typeId": 0
+        },
+        {
+          "name": "sub_id",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "target",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "token_info",
+          "typeId": 28
+        }
+      ]
+    },
+    {
+      "type": "struct events::CampaignDeletedEvent",
+      "metadataTypeId": 7,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct events::CampaignDeniedEvent",
+      "metadataTypeId": 8,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct events::CampaignLaunchedEvent",
+      "metadataTypeId": 9,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        },
+        {
+          "name": "users_share",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "remaining_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "amm_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::ClaimEvent",
+      "metadataTypeId": 10,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::MintEvent",
+      "metadataTypeId": 11,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "recipient",
+          "typeId": 0
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::PledgedEvent",
+      "metadataTypeId": 12,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "total_pledged",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::SellEvent",
+      "metadataTypeId": 13,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "refund",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "sold_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct src20::SetDecimalsEvent",
+      "metadataTypeId": 14,
+      "components": [
+        {
+          "name": "asset",
+          "typeId": 19
+        },
+        {
+          "name": "decimals",
+          "typeId": 29
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct src20::SetNameEvent",
+      "metadataTypeId": 15,
+      "components": [
+        {
+          "name": "asset",
+          "typeId": 19
+        },
+        {
+          "name": "name",
+          "typeId": 1,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 23
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct src20::SetSymbolEvent",
+      "metadataTypeId": 16,
+      "components": [
+        {
+          "name": "asset",
+          "typeId": 19
+        },
+        {
+          "name": "symbol",
+          "typeId": 1,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 23
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct src20::TotalSupplyEvent",
+      "metadataTypeId": 17,
+      "components": [
+        {
+          "name": "asset",
+          "typeId": 19
+        },
+        {
+          "name": "supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "sender",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct std::address::Address",
+      "metadataTypeId": 18,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::asset_id::AssetId",
+      "metadataTypeId": 19,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::bytes::Bytes",
+      "metadataTypeId": 20,
+      "components": [
+        {
+          "name": "buf",
+          "typeId": 21
+        },
+        {
+          "name": "len",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct std::bytes::RawBytes",
+      "metadataTypeId": 21,
+      "components": [
+        {
+          "name": "ptr",
+          "typeId": 4
+        },
+        {
+          "name": "cap",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct std::contract_id::ContractId",
+      "metadataTypeId": 22,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::string::String",
+      "metadataTypeId": 23,
+      "components": [
+        {
+          "name": "bytes",
+          "typeId": 20
+        }
+      ]
+    },
+    {
+      "type": "struct std::vec::RawVec",
+      "metadataTypeId": 24,
+      "components": [
+        {
+          "name": "ptr",
+          "typeId": 4
+        },
+        {
+          "name": "cap",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "typeParameters": [
+        3
+      ]
+    },
+    {
+      "type": "struct std::vec::Vec",
+      "metadataTypeId": 25,
+      "components": [
+        {
+          "name": "buf",
+          "typeId": 24,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 3
+            }
+          ]
+        },
+        {
+          "name": "len",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "typeParameters": [
+        3
+      ]
+    },
+    {
+      "type": "struct types::bonding::BondingCurve",
+      "metadataTypeId": 26,
+      "components": [
+        {
+          "name": "sold_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "max_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "base_price",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "slope",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct types::campaign::Campaign",
+      "metadataTypeId": 27,
+      "components": [
+        {
+          "name": "target",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "creator",
+          "typeId": 0
+        },
+        {
+          "name": "status",
+          "typeId": 2
+        },
+        {
+          "name": "token_id",
+          "typeId": 19
+        },
+        {
+          "name": "sub_id",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "total_pledged",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "total_supply",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "curve",
+          "typeId": 26
+        },
+        {
+          "name": "amm_reserved",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct types::structs::TokenInfo",
+      "metadataTypeId": 28,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 19
+        },
+        {
+          "name": "name",
+          "typeId": 23
+        },
+        {
+          "name": "ticker",
+          "typeId": 23
+        },
+        {
+          "name": "description",
+          "typeId": 23
+        },
+        {
+          "name": "decimals",
+          "typeId": 29
+        },
+        {
+          "name": "image",
+          "typeId": 23
+        }
+      ]
+    },
+    {
+      "type": "u8",
+      "metadataTypeId": 29
+    }
+  ],
+  "functions": [
+    {
+      "name": "buy",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "max_cost",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Buys tokens from bonding curve."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Caller must send exact base-asset cost; returns cost."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "claim",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Claims user allocation after launch."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " User can claim only once; returns false if no pledge found."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "create_campaign",
+      "inputs": [
+        {
+          "name": "name",
+          "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c"
+        },
+        {
+          "name": "ticker",
+          "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c"
+        },
+        {
+          "name": "description",
+          "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c"
+        },
+        {
+          "name": "image",
+          "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c"
+        }
+      ],
+      "output": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Creates a new campaign and initializes its metadata."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Generates deterministic sub_id from (counter, sender)."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "delete_campaign",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Deletes campaign metadata and removes asset reference."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns true if campaign no longer exists."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "deny_campaign",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Denies an active campaign and refunds all pledges."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only valid for Active campaigns."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_assets",
+      "inputs": [],
+      "output": "cea4b27422ef9bec713c723d02ee6ed5be55227cbfb2561b416abde46eb1eac6",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns metadata for all created assets."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Iterates storage.assets and resolves TokenInfo for each asset id."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_campaign",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "25508f36b510e4caaa34f13132d8c5890fee213dfdc93c792b52274402720f89",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns campaign by asset id (reverts if not found)."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_campaign_counter",
+      "inputs": [],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns total number of campaigns created."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_campaigns",
+      "inputs": [],
+      "output": "1ec264705714a469ba386512879d87a6060a454b1b43d1d9228a7bfb38020abf",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns all stored campaigns."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Iterates storage.assets and collects Campaigns that exist."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_pledge",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "sender",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns pledged amount for a user and campaign."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_token_info",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns token info for asset id."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_total_pledged",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns total pledged amount for a campaign."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "launch_campaign",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Launches a campaign: initializes curve, mints full supply to contract."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Requires creator and at least one pledge."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mint",
+      "inputs": [
+        {
+          "name": "recipient",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "sub_id",
+          "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Mints token amount to recipient for given sub_id."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Updates total_supply storage and emits TotalSupplyEvent."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pledge",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Pledges base asset to an active campaign."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Enforces max pledge per user and exact msg_amount."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "refund_pledge",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Refunds user pledge after campaign denial."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " User can refund only once; returns false if no pledge found."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sell",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "min_refund",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Sells tokens back to bonding curve."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Caller must send token amount; returns refund in base asset."
+          ]
+        }
+      ]
+    }
+  ],
+  "loggedTypes": [
+    {
+      "logId": "10098701174489624218",
+      "concreteTypeId": "8c25cb3686462e9a86d2883c5688a22fe738b0bbc85f458d2d2b5f3f667c6d5a"
+    },
+    {
+      "logId": "16560770387918921138",
+      "concreteTypeId": "e5d3acecd2b71db2d42a1508d1d48ac751330f307d256d8894db211c23c2815a"
+    },
+    {
+      "logId": "2279040052662566249",
+      "concreteTypeId": "1fa0c6da5fd6fd691795bd27aadcc15cdc0280686eab924a3884591d8d82eeab"
+    },
+    {
+      "logId": "3192531903561655239",
+      "concreteTypeId": "2c4e26d9fde4e3c732683d47b93ece2ba27aa77cc27495ea42fe5491ef144f0d"
+    },
+    {
+      "logId": "4451896846918592488",
+      "concreteTypeId": "3dc850985943a7e8e5becd967e8b8eaa26a7dec1f75a1a80ace5b3bf622b1e1a"
+    },
+    {
+      "logId": "13161214062477053647",
+      "concreteTypeId": "b6a606756ed20ecf9e047dfc134b0a9ba42ccc642956ce4205e784e82ee1daa1"
+    },
+    {
+      "logId": "1830997786495440415",
+      "concreteTypeId": "196902c92896561f95e35839c11957d4cb69848d385eeaa86515cbe22afbb812"
+    },
+    {
+      "logId": "13392195634735179841",
+      "concreteTypeId": "b9daa2f992ed68411a468101279c2618f9e7ebaba34777e7ed47567c459fedab"
+    },
+    {
+      "logId": "12980308201962632363",
+      "concreteTypeId": "b42351897d1274ab71a60107e31cb47598682fd90b67ebbe30621865d682e663"
+    },
+    {
+      "logId": "14024137344589623889",
+      "concreteTypeId": "c29fbe9ca18df251d732cb4f8397ab2231c817747dff2afc2a358bbc32e58f58"
+    },
+    {
+      "logId": "8807078256608655330",
+      "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba"
+    },
+    {
+      "logId": "10159620282815190840",
+      "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12"
+    },
+    {
+      "logId": "17276933148737557424",
+      "concreteTypeId": "efc3ff2962ac53b0d658fef7024d9b9df649f77a5e512c743f6451d648f60ab9"
+    },
+    {
+      "logId": "8709694070647771023",
+      "concreteTypeId": "78df0c9c7f494f8f480f4abfe69400be9d2bcefc0bcf14dcb1db1cae9c6e39b2"
+    }
+  ],
+  "messagesTypes": [],
+  "configurables": [
+    {
+      "name": "MIGRATION_TARGET",
+      "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "offset": 71408,
+      "indirect": false
+    },
+    {
+      "name": "INITIAL_SUPPLY",
+      "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "offset": 71392,
+      "indirect": false
+    },
+    {
+      "name": "MAX_PLEDGE_AMOUNT",
+      "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "offset": 71400,
+      "indirect": false
+    },
+    {
+      "name": "PLEDGE_ASSET_ID",
+      "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
+      "offset": 71416,
+      "indirect": false
+    },
+    {
+      "name": "CURVE_SUPPLY_PERCENT",
+      "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "offset": 71384,
+      "indirect": false
+    }
+  ],
+  "errorCodes": {},
+  "panickingCalls": {}
+}

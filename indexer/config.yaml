@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=./node_modules/envio/fuel.schema.json
+name: envio-indexer
+ecosystem: fuel
+networks:
+  - id: 0
+    start_block: 0
+    contracts:
+      - name: Launchpad
+        address:
+          - 0x59d4475501eb74ebfc1afdf58ee7fb5d641dcbc5058f354bd99b4b61c93658f5
+        abi_file_path: abis/launchpad-abi.json
+        handler: src/EventHandlers.ts
+        events:
+          - name: CampaignLaunchedEvent
+            logId: '14024137344589623889'
+          - name: BuyEvent
+            logId: '16560770387918921138'
+          - name: TotalSupplyEvent
+            logId: '8807078256608655330'
+          - name: MintEvent
+            logId: '10159620282815190840'
+          - name: CampaignCreatedEvent
+            logId: '1830997786495440415'
+          - name: PledgedEvent
+            logId: '17276933148737557424'
+          - name: SellEvent
+            logId: '8709694070647771023'
+          - name: ClaimEvent
+            logId: '2279040052662566249'
+          - name: SetNameEvent
+            logId: '3192531903561655239'
+          - name: SetSymbolEvent
+            logId: '4451896846918592488'
+          - name: CampaignDeniedEvent
+            logId: '12980308201962632363'
+          - name: SetDecimalsEvent
+            logId: '13161214062477053647'
+          - name: StrLog
+            logId: '10098701174489624218'
+          - name: CampaignDeletedEvent
+            logId: '13392195634735179841'
+          - name: Transfer
+          - name: Mint
+          - name: Burn
+      - name: Cinder
+        address:
+          - 0x4422903b2ebbd43b3ae32ad9b6d0802fa19ab88903d61b429d5771a36fa51286
+        abi_file_path: abis/cinder-abi.json
+        handler: src/EventHandlers.ts
+        events:
+          - name: SetImageEvent
+            logId: '13997553477648142054'
+          - name: StrLog
+            logId: '10098701174489624218'
+          - name: SetNameEvent
+            logId: '3192531903561655239'
+          - name: SetDecimalsEvent
+            logId: '13161214062477053647'
+          - name: SetSymbolEvent
+            logId: '4451896846918592488'
+          - name: InitializeEvent
+            logId: '10485970385165293146'
+          - name: SetOwnerEvent
+            logId: '1320396085097728272'
+          - name: TotalSupplyEvent
+            logId: '8807078256608655330'
+          - name: Transfer
+          - name: Mint
+          - name: Burn
+preload_handlers: true
