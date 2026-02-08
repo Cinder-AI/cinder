@@ -10,7 +10,8 @@ use ::bonding::BondingCurve;
 pub enum CampaignStatus {
     Active: (),
     Launched: (),
-    Failed: (),
+    Denied: (),
+    Migrated: (),
 }
 
 impl PartialEq for CampaignStatus {
@@ -18,7 +19,8 @@ impl PartialEq for CampaignStatus {
         match (self, other) {
             (CampaignStatus::Active, CampaignStatus::Active) => true,
             (CampaignStatus::Launched, CampaignStatus::Launched) => true,
-            (CampaignStatus::Failed, CampaignStatus::Failed) => true,
+            (CampaignStatus::Denied, CampaignStatus::Denied) => true,
+            (CampaignStatus::Migrated, CampaignStatus::Migrated) => true,
             _ => false,
         }
     }

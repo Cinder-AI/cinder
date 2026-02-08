@@ -244,7 +244,7 @@ impl Launchpad for Contract {
         
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
         let sender = msg_sender().unwrap();
-        campaign.status = CampaignStatus::Failed;
+        campaign.status = CampaignStatus::Denied;
         storage.campaigns.insert(asset_id, campaign);
         log(CampaignDeniedEvent {
             asset_id,
@@ -330,7 +330,7 @@ impl Launchpad for Contract {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
 
-        require(campaign.status == CampaignStatus::Failed, "Not failed");
+        require(campaign.status == CampaignStatus::Denied, "Not denied");
 
         let pledges_vec = storage.pledges.get(asset_id);
         let pledges_len = pledges_vec.len();
