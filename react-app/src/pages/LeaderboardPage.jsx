@@ -119,8 +119,13 @@ export const LeaderboardPage = () => {
   }, [isScrollable, syncScrollable]);
 
   const tokens = useMemo(
-    () => getTokens().filter(token => !token.isSystemToken && token.status !== "launched"),
-    [getTokens]
+    () =>
+      getTokens().filter(
+        token =>
+          !token.isSystemToken &&
+          String(token.status || '').toLowerCase() !== 'launched',
+      ),
+    [getTokens],
   );
   
   const top10Tokens = useMemo(() => selectTopTokens(tokens), [tokens]);

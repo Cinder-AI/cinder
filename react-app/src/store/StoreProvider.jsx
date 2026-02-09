@@ -58,7 +58,7 @@ const buildCampaignTokens = (campaigns) =>
     const totalPledged = BigInt(campaign.total_pledged || '0')
     const progress = target > 0n ? Number((totalPledged * 100n) / target) : 0
     const shortId = campaign.id?.slice?.(0, 6) || String(idx)
-    const status = (campaign.status || 'active').toLowerCase()
+    const status = campaign.status
     const image = campaign.token_image || campaign.image || ''
     const name = campaign.token_name || `Campaign ${shortId}`
     const ticker = campaign.token_ticker || `#${shortId}`
