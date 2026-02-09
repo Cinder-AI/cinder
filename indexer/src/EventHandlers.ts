@@ -32,246 +32,23 @@ import {
   Launchpad_Transfer,
   Launchpad_Mint,
   Launchpad_Burn,
-  User,
   Campaign,
   Trade,
   Pledge,
-  DailyStats,
-  UserDayActivity,
-  CampaignDailyStats,
-  CampaignUserDayActivity,
 } from "generated";
+import {
+  markCampaignUserActiveForDay,
+  markUserActiveForDay,
+  upsertCampaign,
+  upsertCampaignDailyStats,
+  upsertDailyStats,
+  upsertUser,
+} from "./utils/stats";
+import { getBlockHeight, getDayId, getDayStart, getTimestamp, getTxId } from "./utils/time";
+import { BASE_ASSET_DECIMALS, toHuman } from "./utils/units";
 
 const identityToId = (identity: { case: "Address" | "ContractId"; payload: { bits: string } }) =>
   identity.payload.bits;
-
-const getTimestamp = (event: { block: { time: number } }) => BigInt(event.block.time);
-const getBlockHeight = (event: { block: { height: number } }) => BigInt(event.block.height);
-const getTxId = (event: { transaction: { id: string } }) => event.transaction.id;
-const DAY_SECONDS = 86_400n;
-
-const getDayId = (timestamp: bigint) => (timestamp / DAY_SECONDS).toString();
-const getDayStart = (timestamp: bigint) => (timestamp / DAY_SECONDS) * DAY_SECONDS;
-
-const upsertUser = async (
-  context: { User: { get: (id: string) => Promise<User | undefined>; set: (user: User) => void } },
-  userId: string,
-  timestamp: bigint,
-  actionDelta: bigint,
-  volumeDelta: bigint,
-) => {
-  const user = await context.User.get(userId);
-  if (!user) {
-    context.User.set({
-      id: userId,
-      first_seen_at: timestamp,
-      last_seen_at: timestamp,
-      total_actions: actionDelta,
-      total_volume_base: volumeDelta,
-    });
-    return;
-  }
-
-  const updatedUser: User = {
-    ...user,
-    last_seen_at: timestamp,
-    total_actions: user.total_actions + actionDelta,
-    total_volume_base: user.total_volume_base + volumeDelta,
-  };
-  context.User.set(updatedUser);
-};
-
-const upsertCampaign = async (
-  context: { Campaign: { get: (id: string) => Promise<Campaign | undefined>; set: (campaign: Campaign) => void } },
-  campaignId: string,
-  data: Omit<Campaign, "id">,
-) => {
-  const campaign = await context.Campaign.get(campaignId);
-  const updatedCampaign: Campaign = campaign
-    ? { ...campaign, ...data }
-    : {
-        id: campaignId,
-        ...data,
-      };
-  context.Campaign.set(updatedCampaign);
-};
-
-const upsertDailyStats = async (
-  context: {
-    DailyStats: { get: (id: string) => Promise<DailyStats | undefined>; set: (stats: DailyStats) => void };
-  },
-  dayId: string,
-  dayStart: bigint,
-  actionDelta: bigint,
-  volumeDelta: bigint,
-  liquidityDelta: bigint,
-) => {
-  const stats = await context.DailyStats.get(dayId);
-  if (!stats) {
-    context.DailyStats.set({
-      id: dayId,
-      date_start: dayStart,
-      unique_users: 0n,
-      total_actions: actionDelta,
-      total_volume_base: volumeDelta,
-      liquidity_end_base: liquidityDelta,
-      liquidity_change_base: liquidityDelta,
-    });
-    return;
-  }
-
-  const updatedStats: DailyStats = {
-    ...stats,
-    total_actions: stats.total_actions + actionDelta,
-    total_volume_base: stats.total_volume_base + volumeDelta,
-    liquidity_end_base: stats.liquidity_end_base + liquidityDelta,
-    liquidity_change_base: stats.liquidity_change_base + liquidityDelta,
-  };
-  context.DailyStats.set(updatedStats);
-};
-
-const markUserActiveForDay = async (
-  context: {
-    UserDayActivity: {
-      get: (id: string) => Promise<UserDayActivity | undefined>;
-      set: (activity: UserDayActivity) => void;
-    };
-    DailyStats: { get: (id: string) => Promise<DailyStats | undefined>; set: (stats: DailyStats) => void };
-  },
-  userId: string,
-  dayId: string,
-  dayStart: bigint,
-  timestamp: bigint,
-) => {
-  const activityId = `${userId}-${dayId}`;
-  const existing = await context.UserDayActivity.get(activityId);
-  if (existing) {
-    return;
-  }
-
-  context.UserDayActivity.set({
-    id: activityId,
-    user_id: userId,
-    day_id: dayId,
-    first_seen_at: timestamp,
-  });
-
-  const stats = await context.DailyStats.get(dayId);
-  if (!stats) {
-    context.DailyStats.set({
-      id: dayId,
-      date_start: dayStart,
-      unique_users: 1n,
-      total_actions: 0n,
-      total_volume_base: 0n,
-      liquidity_end_base: 0n,
-      liquidity_change_base: 0n,
-    });
-    return;
-  }
-
-  const updatedStats: DailyStats = {
-    ...stats,
-    unique_users: stats.unique_users + 1n,
-  };
-  context.DailyStats.set(updatedStats);
-};
-
-const upsertCampaignDailyStats = async (
-  context: {
-    CampaignDailyStats: {
-      get: (id: string) => Promise<CampaignDailyStats | undefined>;
-      set: (stats: CampaignDailyStats) => void;
-    };
-  },
-  campaignId: string,
-  dayId: string,
-  dayStart: bigint,
-  actionDelta: bigint,
-  volumeDelta: bigint,
-  liquidityDelta: bigint,
-) => {
-  const statsId = `${campaignId}-${dayId}`;
-  const stats = await context.CampaignDailyStats.get(statsId);
-  if (!stats) {
-    context.CampaignDailyStats.set({
-      id: statsId,
-      campaign_id: campaignId,
-      day_id: dayId,
-      date_start: dayStart,
-      unique_users: 0n,
-      total_actions: actionDelta,
-      total_volume_base: volumeDelta,
-      liquidity_end_base: liquidityDelta,
-      liquidity_change_base: liquidityDelta,
-    });
-    return;
-  }
-
-  const updatedStats: CampaignDailyStats = {
-    ...stats,
-    total_actions: stats.total_actions + actionDelta,
-    total_volume_base: stats.total_volume_base + volumeDelta,
-    liquidity_end_base: stats.liquidity_end_base + liquidityDelta,
-    liquidity_change_base: stats.liquidity_change_base + liquidityDelta,
-  };
-  context.CampaignDailyStats.set(updatedStats);
-};
-
-const markCampaignUserActiveForDay = async (
-  context: {
-    CampaignUserDayActivity: {
-      get: (id: string) => Promise<CampaignUserDayActivity | undefined>;
-      set: (activity: CampaignUserDayActivity) => void;
-    };
-    CampaignDailyStats: {
-      get: (id: string) => Promise<CampaignDailyStats | undefined>;
-      set: (stats: CampaignDailyStats) => void;
-    };
-  },
-  campaignId: string,
-  userId: string,
-  dayId: string,
-  dayStart: bigint,
-  timestamp: bigint,
-) => {
-  const activityId = `${campaignId}-${userId}-${dayId}`;
-  const existing = await context.CampaignUserDayActivity.get(activityId);
-  if (existing) {
-    return;
-  }
-
-  context.CampaignUserDayActivity.set({
-    id: activityId,
-    campaign_id: campaignId,
-    user_id: userId,
-    day_id: dayId,
-    first_seen_at: timestamp,
-  });
-
-  const statsId = `${campaignId}-${dayId}`;
-  const stats = await context.CampaignDailyStats.get(statsId);
-  if (!stats) {
-    context.CampaignDailyStats.set({
-      id: statsId,
-      campaign_id: campaignId,
-      day_id: dayId,
-      date_start: dayStart,
-      unique_users: 1n,
-      total_actions: 0n,
-      total_volume_base: 0n,
-      liquidity_end_base: 0n,
-      liquidity_change_base: 0n,
-    });
-    return;
-  }
-
-  const updatedStats: CampaignDailyStats = {
-    ...stats,
-    unique_users: stats.unique_users + 1n,
-  };
-  context.CampaignDailyStats.set(updatedStats);
-};
 
 Cinder.SetImageEvent.handler(async ({ event, context }) => {
   const entity: Cinder_SetImageEvent = {
@@ -403,9 +180,10 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
   const dayId = getDayId(timestamp);
   const dayStart = getDayStart(timestamp);
 
-  await upsertUser(context, userId, timestamp, 1n, event.params.cost);
+  const humanCost = toHuman(event.params.cost, BASE_ASSET_DECIMALS);
+  await upsertUser(context, userId, timestamp, 1n, humanCost);
   await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, event.params.cost, event.params.cost);
+  await upsertDailyStats(context, dayId, dayStart, 1n, humanCost, humanCost);
   await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
   await upsertCampaignDailyStats(
     context,
@@ -413,28 +191,30 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
     dayId,
     dayStart,
     1n,
-    event.params.cost,
-    event.params.cost,
+    humanCost,
+    humanCost,
   );
 
+  const campaign = await context.Campaign.get(campaignId);
+  const tokenDecimals = campaign?.token_decimals ?? 0;
+  const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
     campaign_id: campaignId,
     side: "buy",
-    amount_token: event.params.amount,
-    amount_base: event.params.cost,
+    amount_token: humanAmountToken,
+    amount_base: humanCost,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
   };
   context.Trade.set(trade);
 
-  const campaign = await context.Campaign.get(campaignId);
   if (campaign) {
     const updatedCampaign: Campaign = {
       ...campaign,
-      total_volume_base: campaign.total_volume_base + event.params.cost,
+      total_volume_base: campaign.total_volume_base + humanCost,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -480,10 +260,11 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
   await markCampaignUserActiveForDay(context, campaignId, creatorId, dayId, dayStart, timestamp);
   await upsertCampaignDailyStats(context, campaignId, dayId, dayStart, 1n, 0n, 0n);
 
+  const humanTarget = toHuman(event.params.target, BASE_ASSET_DECIMALS);
   await upsertCampaign(context, campaignId, {
     creator_id: creatorId,
     created_at: timestamp,
-    target: event.params.target,
+    target: humanTarget,
     total_pledged: 0n,
     total_volume_base: 0n,
     status: "Active",
@@ -516,6 +297,8 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
   const dayId = getDayId(timestamp);
   const dayStart = getDayStart(timestamp);
 
+  const humanPledgeAmount = toHuman(event.params.amount, BASE_ASSET_DECIMALS);
+  const humanTotalPledged = toHuman(event.params.total_pledged, BASE_ASSET_DECIMALS);
   await upsertUser(context, userId, timestamp, 1n, 0n);
   await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
   await upsertDailyStats(context, dayId, dayStart, 1n, 0n, 0n);
@@ -526,7 +309,7 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
     campaign_id: campaignId,
-    amount: event.params.amount,
+    amount: humanPledgeAmount,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
@@ -537,7 +320,7 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
   if (campaign) {
     const updatedCampaign: Campaign = {
       ...campaign,
-      total_pledged: event.params.total_pledged,
+      total_pledged: humanTotalPledged,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -562,9 +345,10 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
   const dayId = getDayId(timestamp);
   const dayStart = getDayStart(timestamp);
 
-  await upsertUser(context, userId, timestamp, 1n, event.params.refund);
+  const humanRefund = toHuman(event.params.refund, BASE_ASSET_DECIMALS);
+  await upsertUser(context, userId, timestamp, 1n, humanRefund);
   await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, event.params.refund, -event.params.refund);
+  await upsertDailyStats(context, dayId, dayStart, 1n, humanRefund, -humanRefund);
   await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
   await upsertCampaignDailyStats(
     context,
@@ -572,28 +356,30 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
     dayId,
     dayStart,
     1n,
-    event.params.refund,
-    -event.params.refund,
+    humanRefund,
+    -humanRefund,
   );
 
+  const campaign = await context.Campaign.get(campaignId);
+  const tokenDecimals = campaign?.token_decimals ?? 0;
+  const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
     campaign_id: campaignId,
     side: "sell",
-    amount_token: event.params.amount,
-    amount_base: event.params.refund,
+    amount_token: humanAmountToken,
+    amount_base: humanRefund,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
   };
   context.Trade.set(trade);
 
-  const campaign = await context.Campaign.get(campaignId);
   if (campaign) {
     const updatedCampaign: Campaign = {
       ...campaign,
-      total_volume_base: campaign.total_volume_base + event.params.refund,
+      total_volume_base: campaign.total_volume_base + humanRefund,
     };
     context.Campaign.set(updatedCampaign);
   }
