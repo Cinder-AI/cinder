@@ -9,4 +9,10 @@ react-app/src/sway-api/contracts/*Factory.ts
 .env
 *.md
 *.txt
-react-app/.pnpm_store/
+
+
+react-app/.pnpm-store/
+react-app/.vite/
+react-app/src/sway-api/
+
+indexer/.pnpm-store/
