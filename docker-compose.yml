@@ -20,7 +20,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       # pnpm may need to reinstall node_modules; in non-TTY runs this avoids interactive prompts
       CI: "true"
-      VITE_STORAGE_URL: "http://localhost:500"
+      VITE_STORAGE_URL: "http://localhost:5001"
     command: sh -c "pnpm install --no-frozen-lockfile && pnpm dev -- --port 5173 --strictPort"
   storage:
     build:
