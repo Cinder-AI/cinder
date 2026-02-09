@@ -5,7 +5,7 @@ import { Button } from '../components/Button.jsx'
 import { useStore } from '../store/StoreProvider.jsx'
 import { useBalance } from '../hooks/useBalance.tsx'
 import { indexerGraphQL } from '../services/indexerGraphQL.ts'
-import { formatNumber } from '../utils/index.js'
+import { formatNumber, fromBaseUnits } from '../utils/index.js'
 import { useContracts } from '../hooks/useContracts.tsx'
 
 export function HoldingsPage() {
@@ -45,7 +45,8 @@ export function HoldingsPage() {
     const rows = new Map()
 
     balances.forEach((balance) => {
-      const amount = Number(balance.amount || 0)
+      const decimals = balance.metadata?.decimals ?? 9
+      const amount = fromBaseUnits(balance.amount || 0, decimals)
       if (!amount) return
       const byAsset = getTokenByAssetId(balance.assetId)
       const byTicker = balance.metadata?.symbol ? getTokenByTicker(balance.metadata.symbol) : null
@@ -53,7 +54,7 @@ export function HoldingsPage() {
       const token = byAsset || byTicker || byName
       if (!token) return
       const key = token.assetId || token.id
-      rows.set(key, { ...token, amount: balance.amount })
+      rows.set(key, { ...token, amount })
     })
 
     pledges.forEach((pledge) => {
@@ -72,11 +73,16 @@ export function HoldingsPage() {
 
     return Array.from(rows.values())
   }, [balances, pledges, getTokenByAssetId, getTokenByName, getTokenByTicker])
-
+  console.log("tokens", tokens);
   const claim = async (token) => {
     if (!launchpadContract || !token?.assetId) return
     try {
-      await launchpadContract.functions.claim({ bits: token.assetId }).call()
+      const status = String(token.status || '').toLowerCase()
+      if (status === 'Launched')
+        await launchpadContract.functions.claim({ bits: token.assetId }).call()
+      if (status === 'Failed')
+        console.log('op')
+        await launchpadContract.functions.refund_pledge({ bits: token.assetId }).call()
       await Promise.all([refetch(), loadPledges()])
     } catch (err) {
       console.error('Claim failed:', err)

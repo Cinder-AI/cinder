@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/StoreProvider.jsx'
+import { fromBaseUnits } from '../utils/index.js'
 import { useConnect, useConnectUI, useIsConnected } from '@fuels/react'
 import { useBalance } from '../hooks/useBalance.tsx'
 import { useContracts } from '../hooks/useContracts.tsx'
@@ -31,7 +32,9 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
   const [fuelContract, setFuelContract] = useState(null)
   const cinBalance = useMemo(() => {
     const cin = balances.find(b => b.metadata?.symbol === 'CIN' || b.metadata?.name === 'CIN')
-    return cin?.amount ?? '0'
+    if (!cin) return '0'
+    const decimals = cin.metadata?.decimals ?? 9
+    return fromBaseUnits(cin.amount ?? 0, decimals).toString()
   }, [balances])
 
   useEffect(() => {

@@ -15,15 +15,12 @@ import { Cinder } from '../sway-api/contracts/Cinder.ts'
 import { Launchpad } from '../sway-api/contracts/Launchpad.ts'
 import { Fuel } from '../sway-api/contracts/Fuel.ts'
 
-import { formatNumber } from '../utils/index.ts'
-import { testCinderContract } from '../utils/test_cinder_contract.ts'
-import { testLaunchpadContract } from '../utils/test_launchpad_contract.ts'
-import { calculateNextTokenId } from '../store/defaultData.js'
-import { TokenDetailsPage } from './TokenDetailsPage.jsx'
+import { formatNumber, toBaseUnits } from '../utils/index.ts'
 
 import { DollarIcon } from '../components/icons/DollarIcon.jsx'
 import { CrossIcon } from '../components/icons/CrossIcon.jsx'
-import { FlameIcon } from '../components/icons/FlameIcon.jsx'
+
+
 
 export function DiscoveryPage() {
   const { getTokens, addPledge, getToken, getTokenByName, launchCampaign } = useStore();
@@ -34,7 +31,10 @@ export function DiscoveryPage() {
   const [fuelContract, setFuelContract] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [amount, setAmount] = useState(0);
-  const tokens = useMemo(() => getTokens().filter(t => !t.isSystemToken), [getTokens]);
+  const tokens = useMemo(
+    () => getTokens().filter(t => String(t.status || '').toLowerCase() === 'active'),
+    [getTokens],
+  );
   const { balances, loading, error } = useBalance();
 
   const [showAirdrop, setShowAirdrop] = useState(false);
@@ -215,7 +215,7 @@ export function DiscoveryPage() {
 
     const amountBefore = token.totalPledged;
     const progressBefore = token.progress;
-    const amountStr = amount.toString();
+    const baseAmount = toBaseUnits(amount);
 
     try {
       const baseAssetIdRaw = wallet.provider.getBaseAssetId?.();
@@ -224,8 +224,8 @@ export function DiscoveryPage() {
       if (!baseAssetId) throw new Error('Base asset id not available');
 
       const { waitForResult } = await launchpadContract.functions
-        .pledge({ bits: assetBits }, amountStr)
-        .callParams({ forward: { assetId: "0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8", amount: amountStr } })
+        .pledge({ bits: assetBits }, baseAmount)
+        .callParams({ forward: { assetId: "0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8", amount: baseAmount } })
         .call();
       const res = await waitForResult();
       console.log("res", res);
@@ -325,7 +325,7 @@ export function DiscoveryPage() {
         <AmountSelector
           balance={`${formatNumber(balance)} stFUEL`}
           onAmountChange={(amount) => setAmount(amount)}
-          amount={1000}
+          amount={amount}
           minRange={0}
           maxRange={250000}
           showButtons={true}
