@@ -1,7 +1,6 @@
 contract;
 
 pub mod events;
-pub mod utils;
 
 use std::{
     string::String,
@@ -15,9 +14,9 @@ use std::{
     auth::msg_sender,
     identity::Identity,
     contract_id::ContractId,
+    assert::assert,
 };
 
-use utils::*;
 use events::{
     CampaignCreatedEvent,
     CampaignDeniedEvent,
@@ -33,16 +32,17 @@ use types::launchpad::Launchpad;
 use types::campaign::{CampaignStatus, Campaign};
 use types::bonding::BondingCurve;
 use types::structs::{TokenInfo, Pledge};
+use utils::*;
 
 use src20::{TotalSupplyEvent, SRC20};
 use src3::SRC3;
-use src7::SRC7;
+use src7::{SRC7, Metadata};
 use src5::{SRC5, State};
 
 configurable {
     DEFAULT_DECIMALS: u8 = 9,
-    MIGRATION_TARGET: u64 = 1_000_000 * 10 ** DEFAULT_DECIMALS,
-    INITIAL_SUPPLY: u64 = 1_000_000_000 * 10 ** DEFAULT_DECIMALS,
+    MIGRATION_TARGET: u64 = 1_000_000_000_000_000,
+    INITIAL_SUPPLY: u64 = 1_000_000_000_000_000_000,
     PLEDGE_ASSET_ID: b256 = 0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8,
     CURVE_SUPPLY_PERCENT: u64 = 80,
     INSTANT_LAUNCH_THRESHOLD_PERCENT: u64 = 80,
@@ -82,15 +82,8 @@ fn require_owner() {
     }
 }
 
-impl SRC5 for  Contract {
-    #[storage(read)]
-    fn owner() -> State {
-        storage.owner.read()
-    }
-}
-
 fn is_instant_launch_ready(total_pledged: u64) -> bool {
-    total_pledged >= MIGRATION_TARGET * INSTANT_LAUNCH_THRESHOLD_PERCENT / 100
+    total_pledged >= (MIGRATION_TARGET / 100) * INSTANT_LAUNCH_THRESHOLD_PERCENT
 }
 
 #[storage(read, write)]
@@ -99,16 +92,15 @@ fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
     require(campaign.status == CampaignStatus::Active, "Not active");
     require(campaign.total_pledged > 0, "No pledges");
 
-    let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
+    let curve_supply = (INITIAL_SUPPLY / 100) * CURVE_SUPPLY_PERCENT;
     let amm_supply = INITIAL_SUPPLY - curve_supply;
 
-    let users_share = curve_supply * campaign.total_pledged / MIGRATION_TARGET;
+    let users_share = (curve_supply / MIGRATION_TARGET) * campaign.total_pledged;
     let remaining_supply = curve_supply - users_share;
     require(users_share <= curve_supply, "User share exceeds curve supply");
 
     campaign.curve.initialize(campaign.total_pledged, users_share);
-    mint(campaign.sub_id, remaining_supply);
-    mint(campaign.sub_id, amm_supply);
+    mint(campaign.sub_id, INITIAL_SUPPLY);
     campaign.amm_reserved = amm_supply;
     campaign.status = CampaignStatus::Launched;
     storage.campaigns.insert(asset_id, campaign);
@@ -129,7 +121,7 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
     let ticker = storage.ticker.get(asset_id).read_slice().unwrap();
     let description = storage.description.get(asset_id).read_slice().unwrap();
     let image = storage.image.get(asset_id).read_slice().unwrap();
-    let decimals = storage.decimals.get(asset_id).try_read().unwrap_or(9);
+    let decimals = storage.decimals.get(asset_id).try_read().unwrap_or(DEFAULT_DECIMALS);
     
     TokenInfo {
         asset_id: asset_id,
@@ -138,6 +130,56 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
         description: description,
         image: image,
         decimals: decimals,
+    }
+}
+
+impl SRC5 for  Contract {
+    #[storage(read)]
+    fn owner() -> State {
+        storage.owner.read()
+    }
+}
+
+impl SRC20 for Contract {
+    #[storage(read)]
+    fn total_assets() -> u64 {
+        storage.assets.len()
+    }
+
+    #[storage(read)]
+    fn total_supply(asset: AssetId) -> Option<u64> {
+        storage.total_supply.get(asset).try_read()
+    }
+
+    #[storage(read)]
+    fn name(asset: AssetId) -> Option<String> {
+        storage.name.get(asset).read_slice()
+    }
+
+    #[storage(read)]
+    fn symbol(asset: AssetId) -> Option<String> {
+        storage.ticker.get(asset).read_slice()
+    }
+
+    #[storage(read)]
+    fn decimals(asset: AssetId) -> Option<u8> {
+        storage.decimals.get(asset).try_read()
+    }
+}
+
+impl SRC7 for Contract {
+    #[storage(read)]
+    fn metadata(asset: AssetId, key: String) -> Option<Metadata> {
+        if storage.total_supply.get(asset).try_read().is_none() {
+            return None;
+        }
+
+        match key.as_str() {
+            "image" => {
+                Some(Metadata::String(storage.image.get(asset).read_slice().unwrap()))
+            },
+            _ => None,
+        }
     }
 }
 
@@ -201,13 +243,13 @@ impl Launchpad for Contract {
         let sub_id = sha256((counter, sender));
         let asset_id = AssetId::new(ContractId::this(), sub_id);
 
-        set_name(storage.name, asset_id, name);
-        set_ticker(storage.ticker, asset_id, ticker);
-        set_description(storage.description, asset_id, description);
-        set_image(storage.image, asset_id, image);
-        set_decimals(storage.decimals, asset_id, 9);
+        storage.name.get(asset_id).write_slice(name);
+        storage.ticker.get(asset_id).write_slice(ticker);
+        storage.description.get(asset_id).write_slice(description);
+        storage.image.get(asset_id).write_slice(image);
+        storage.decimals.get(asset_id).write(DEFAULT_DECIMALS);
 
-        let curve_supply = INITIAL_SUPPLY * CURVE_SUPPLY_PERCENT / 100;
+        let curve_supply = (INITIAL_SUPPLY / 100) * CURVE_SUPPLY_PERCENT;
         let curve = BondingCurve::new(curve_supply);
         let campaign = Campaign {
             target: MIGRATION_TARGET,
@@ -256,31 +298,6 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
-    /// Deletes campaign metadata and removes asset reference.
-    /// Returns true if campaign no longer exists.
-    fn delete_campaign(
-        asset_id: AssetId,
-    ) -> bool {
-        require_owner();
-        let sender = msg_sender().unwrap();
-
-        let _ = delete_name(storage.name, asset_id);
-        let _ = delete_ticker(storage.ticker, asset_id);
-        let _ = delete_description(storage.description, asset_id);
-        let _ = delete_image(storage.image, asset_id);
-        let _ = delete_decimals(storage.decimals, asset_id);
-        let _ = delete_campaign(storage.campaigns, asset_id);
-        let _ = delete_asset(storage.assets, asset_id);
-
-        log(CampaignDeletedEvent {
-            asset_id,
-            sender,
-        });
-
-        storage.campaigns.get(asset_id).try_read().is_none()
-    }
-
-    #[storage(read, write)]
     /// Launches a campaign: initializes curve, mints full supply to contract.
     /// Owner-only; campaign must be active and have pledges.
     fn launch_campaign(asset_id: AssetId) -> bool {
@@ -307,7 +324,13 @@ impl Launchpad for Contract {
             if pledge.sender == sender {
                 require(!pledge.claimed, "Already claimed");
                 let users_share = campaign.curve.sold_supply;
-                let user_share = (pledge.amount * users_share) / campaign.total_pledged;
+                let user_share = {
+                    let pledged_256 = u256::from(pledge.amount);
+                    let users_share_256 = u256::from(users_share);
+                    let total_pledged_256 = u256::from(campaign.total_pledged);
+                    let share = (pledged_256 * users_share_256) / total_pledged_256;
+                    u256_to_u64(share)
+                };
                 transfer(sender, asset_id, user_share);
                 pledge.claimed = true;
                 pledges_vec.set(i, pledge);

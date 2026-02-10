@@ -54,4 +54,7 @@ dependencies = [
 [[package]]
 name = "utils"
 source = "path+from-root-6CB957643257C0CF"
-dependencies = ["std"]
+dependencies = [
+    "src5",
+    "std",
+]

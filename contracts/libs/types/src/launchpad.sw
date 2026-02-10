@@ -21,9 +21,6 @@ abi Launchpad {
     fn deny_campaign(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]
-    fn delete_campaign(asset_id: AssetId) -> bool;
-
-    #[storage(read, write)]
     fn launch_campaign(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]
