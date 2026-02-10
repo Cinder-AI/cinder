@@ -8,6 +8,8 @@ use src20::{SRC20, TotalSupplyEvent, SetNameEvent, SetSymbolEvent, SetDecimalsEv
 use src5::{SRC5, State};
 use types::cinder::CinderToken;
 use types::structs::TokenInfo;
+use utils::single_asset_helpers::*;
+use utils::utils::*;
 
 use std::{
     asset::{burn, mint_to},
@@ -33,6 +35,9 @@ storage {
     image: StorageString = StorageString{},
     total_supply: u64 = 0,
     owner: State = State::Uninitialized, // Launchpad Contract
+    name: StorageString = StorageString{},
+    symbol: StorageString = StorageString{},
+    decimals: u8 = 9,
 }
 
 
@@ -46,50 +51,27 @@ impl EmitSRC20Events for Contract {
     fn emit_src20_events() {
         let asset = AssetId::default();
         let sender = msg_sender().unwrap();
-        let name = Some(String::from_ascii_str(from_str_array(NAME)));
-        let symbol = Some(String::from_ascii_str(from_str_array(SYMBOL)));
+        let name = storage.name.read_slice();
+        let symbol = storage.symbol.read_slice();
         let image = storage.image.read_slice();
+        let decimals = storage.decimals.read();
 
         SetNameEvent::new(asset, name, sender).log();
         SetSymbolEvent::new(asset, symbol, sender).log();
-        SetDecimalsEvent::new(asset, DECIMALS, sender).log();
+        SetDecimalsEvent::new(asset, decimals, sender).log();
         SetImageEvent::new(asset, image, sender).log();
     }
 }
 
-#[storage(read)]
-fn get_image() -> Option<Metadata> {
-    let image = storage.image.read_slice();
-    if image.is_some() {
-        Some(Metadata::String(image.unwrap()))
-    } else {
-        None
+
+impl SRC5 for Contract {
+    #[storage(read)]
+    fn owner() -> State {
+        storage.owner.read()
     }
 }
 
-impl CinderToken for Contract {
-    #[storage(read, write)]
-    fn initialize(owner: Identity) {
-        require(!storage.initialized.read(), "Contract already initialized");
-        storage.initialized.write(true);
-        storage.owner.write(State::Initialized(owner));
-        log(InitializeEvent{ owner });
-    }
-
-    #[storage(read)]
-    fn metadata(asset: AssetId, key: String) -> Option<Metadata> {
-        require(asset == AssetId::default(), "Incorrect asset id");
-
-        match key.as_str() {
-            "image" => {
-                get_image()
-            },
-            _ => None,
-
-        }
-
-    }
-
+impl SRC20 for Contract {
     #[storage(read)]
     fn total_assets() -> u64 {
         1
@@ -97,54 +79,45 @@ impl CinderToken for Contract {
 
     #[storage(read)]
     fn total_supply(asset: AssetId) -> Option<u64> {
-        if asset == AssetId::default() {
-            Some(storage.total_supply.read())
-        } else {
-            None
-        }
+        get_total_supply(storage.total_supply, asset, AssetId::default())
     }
 
     #[storage(read)]
     fn name(asset: AssetId) -> Option<String> {
-        if asset == AssetId::default() {
-            Some(String::from_ascii_str(from_str_array(NAME)))
-        } else {
-            None
-        }
+        get_name(storage.name, asset, AssetId::default())
     }
 
     #[storage(read)]
     fn symbol(asset: AssetId) -> Option<String> {
-        if asset == AssetId::default() {
-            Some(String::from_ascii_str(from_str_array(SYMBOL)))
-        } else {
-            None
-        }
+        get_symbol(storage.symbol, asset, AssetId::default())
     }
-
+    
     #[storage(read)]
     fn decimals(asset: AssetId) -> Option<u8> {
+        get_decimals(storage.decimals, asset, AssetId::default())
+    }
+}
+
+impl SRC7 for Contract {
+    #[storage(read)]
+    fn metadata(asset: AssetId, key: String) -> Option<Metadata> {
         if asset == AssetId::default() {
-            Some(DECIMALS)
+            match key.as_str() {
+                "image" => {
+                    Some(Metadata::String(storage.image.read_slice().unwrap()))
+                },
+                _ => None,
+            }
         } else {
             None
         }
     }
+}
 
-    #[storage(read)]
-    fn owner() -> State {
-        storage.owner.read()
-    }
-
-    #[storage(read, write)]
-    fn set_owner(owner: Identity) {
-        storage.owner.write(State::Initialized(owner));
-        log(SetOwnerEvent{ owner });
-     }
-
+impl SRC3 for Contract {
     #[storage(read, write)]
     fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
-        require_owner();
+        require_owner(storage.owner.read());
         require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
 
         let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
@@ -160,7 +133,7 @@ impl CinderToken for Contract {
 
     #[storage(read, write), payable]
     fn burn(sub_id: SubId, amount: u64) {
-        require_owner();
+        require_owner(storage.owner.read());
         require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
         require(msg_amount() >= amount, "Incorrect amount provided");
         require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
@@ -174,24 +147,35 @@ impl CinderToken for Contract {
         burn(DEFAULT_SUB_ID, amount);
         TotalSupplyEvent::new(AssetId::default(), new_supply, msg_sender().unwrap()).log();
     }
+}
 
-    fn default_sub_id() -> SubId {
-        DEFAULT_SUB_ID
+
+
+impl CinderToken for Contract {
+    #[storage(read, write)]
+    fn initialize(owner: Identity) {
+        require(!storage.initialized.read(), "Contract already initialized");
+        storage.initialized.write(true);
+        storage.owner.write(State::Initialized(owner));
+        log(InitializeEvent{ owner });
+
+        storage.name.write_slice(String::from_ascii_str(from_str_array(NAME)));
+        storage.symbol.write_slice(String::from_ascii_str(from_str_array(SYMBOL)));
+        storage.decimals.write(DECIMALS);
     }
 
-    fn base_asset() -> AssetId {
-        AssetId::base()
-    }
+    #[storage(read, write)]
+    fn set_owner(owner: Identity) {
+        storage.owner.write(State::Initialized(owner));
+        log(SetOwnerEvent{ owner });
+     }
 
-    fn default_asset() -> AssetId {
-        AssetId::default()
-    }
 
     #[storage(read)]
     fn asset_info(asset: AssetId) -> TokenInfo {
-        let name = String::from_ascii_str(from_str_array(NAME));
-        let symbol = String::from_ascii_str(from_str_array(SYMBOL));
-        let decimals = DECIMALS;
+        let name = storage.name.read_slice().unwrap_or(String::from_ascii_str(""));
+        let symbol = storage.symbol.read_slice().unwrap_or(String::from_ascii_str(""));
+        let decimals = storage.decimals.read();
         let image = storage.image.read_slice().unwrap_or(String::from_ascii_str(""));
         TokenInfo {
             asset_id: asset,
@@ -208,17 +192,5 @@ impl CinderToken for Contract {
         storage.image.write_slice(image);
         
         SetImageEvent::new(AssetId::default(), Some(image), msg_sender().unwrap()).log();
-    }
-}
-
-#[storage(read)]
-fn require_owner() {
-    match storage.owner.read() {
-        State::Initialized(owner) => {
-            require(owner == msg_sender().unwrap(), "Not owner");
-        }
-        _ => {
-            require(false, "Owner not initialized");
-        }
     }
 }

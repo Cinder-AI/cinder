@@ -10,6 +10,7 @@ use std::{
     storage::storage_string::*,
     string::String,
 };
+use utils::single_asset_helpers::*;
 
 storage {
     initialized: bool = false,
@@ -24,32 +25,65 @@ abi FuelToken {
     #[storage(read, write)]
     fn initialize(owner: Identity);
 
-    #[storage(read)]
-    fn total_assets() -> u64;
-    
-    #[storage(read)]
-    fn total_supply(asset: AssetId) -> Option<u64>;
-
-    #[storage(read)]
-    fn name(asset: AssetId) -> Option<String>;
-
-    #[storage(read)]
-    fn symbol(asset: AssetId) -> Option<String>;
-
-    #[storage(read)]
-    fn decimals(asset: AssetId) -> Option<u8>;
-
-    #[storage(read)]
-    fn owner() -> State;
-
     #[storage(read, write)]
     fn set_owner(owner: Identity);
+}
 
+impl SRC5 for Contract {
+    #[storage(read)]
+    fn owner() -> State {
+        storage.owner.read()
+    }
+}
+
+impl SRC20 for Contract {
+    #[storage(read)]
+    fn total_assets() -> u64 {
+        1
+    }
+
+    #[storage(read)]
+    fn total_supply(asset: AssetId) -> Option<u64> {
+        get_total_supply(storage.total_supply, asset, AssetId::default())
+    }
+
+    #[storage(read)]
+    fn name(asset: AssetId) -> Option<String> {
+        get_name(storage.name, asset, AssetId::default())
+    }
+
+    #[storage(read)]
+    fn symbol(asset: AssetId) -> Option<String> {
+        get_symbol(storage.symbol, asset, AssetId::default())
+    }
+
+    #[storage(read)]
+    fn decimals(asset: AssetId) -> Option<u8> {
+        get_decimals(storage.decimals, asset, AssetId::default())
+    }
+}
+
+impl SRC3 for Contract {
     #[storage(read, write)]
-    fn mint(recipient: Identity, amount: u64);
+    fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
+        require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
+        let current_supply = storage.total_supply.read();
+        let new_supply = current_supply + amount;
+        storage.total_supply.write(new_supply);
+        mint_to(recipient, sub_id.unwrap(), amount);
+    }
 
     #[storage(read, write), payable]
-    fn burn(amount: u64);   
+    fn burn(sub_id: SubId, amount: u64) {
+        require(msg_amount() >= amount, "Incorrect amount provided");
+        require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
+        require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
+
+        let current_supply = storage.total_supply.read();
+        let new_supply = current_supply - amount;
+        storage.total_supply.write(new_supply);
+        burn(sub_id, amount);
+    }
 }
 
 impl FuelToken for Contract {
@@ -60,90 +94,11 @@ impl FuelToken for Contract {
         storage.owner.write(State::Initialized(owner));
         storage.name.write_slice(String::from_ascii_str("Fuel"));
         storage.symbol.write_slice(String::from_ascii_str("FUEL"));
-    }
-
-    #[storage(read)]
-    fn total_assets() -> u64 {
-        1
-    }
-
-    #[storage(read)]
-    fn total_supply(asset: AssetId) -> Option<u64> {
-        if asset == AssetId::default() {
-            Some(storage.total_supply.read())
-        } else {
-            None
-        }
-    }
-
-    #[storage(read)]
-    fn name(asset: AssetId) -> Option<String> {
-        if asset == AssetId::default() {
-            storage.name.read_slice()
-        } else {
-            None
-        }
-    }
-
-    #[storage(read)]
-    fn symbol(asset: AssetId) -> Option<String> {
-        if asset == AssetId::default() {
-            storage.symbol.read_slice()
-        } else {
-            None
-        }
-    }
-
-    #[storage(read)]
-    fn decimals(asset: AssetId) -> Option<u8> {
-        if asset == AssetId::default() {
-            Some(storage.decimals.read())
-        } else {
-            None
-        }
-    }
-
-    #[storage(read)]
-    fn owner() -> State {
-        storage.owner.read()
+        storage.total_supply.write(0);
     }
 
     #[storage(read, write)]
     fn set_owner(owner: Identity) {
         storage.owner.write(State::Initialized(owner));
-    }
-
-    #[storage(read, write)]
-    fn mint(recipient: Identity, amount: u64) {
-        let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
-        let current_supply = storage.total_supply.read();
-        let new_supply = current_supply + amount;
-        storage
-            .total_supply
-            .write(new_supply);
-        mint_to(recipient, DEFAULT_SUB_ID, amount);
-    }
-
-    #[storage(read, write), payable]
-    fn burn(amount: u64) {
-        require(msg_amount() >= amount, "Incorrect amount provided");
-        require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
-
-        let current_supply = storage.total_supply.read();
-        let new_supply = current_supply - amount;
-        storage.total_supply.write(new_supply);
-        burn(DEFAULT_SUB_ID, amount);
-    }
-}
-
-#[storage(read)]
-fn require_owner() {
-    match storage.owner.read() {
-        State::Initialized(owner) => {
-            require(owner == msg_sender().unwrap(), "Not owner");
-        }
-        _ => {
-            require(false, "Owner not initialized");
-        }
     }
 }

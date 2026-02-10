@@ -6,6 +6,7 @@ dependencies = [
     "src3",
     "src5",
     "std",
+    "utils",
 ]
 
 [[package]]
@@ -30,3 +31,11 @@ dependencies = ["std"]
 name = "std"
 version = "0.70.1"
 source = "registry+std?0.70.1#QmU7w9Aqa6jvQcj72HS8uqfFk3ieiC74WsZGaRfUrW1u41!"
+
+[[package]]
+name = "utils"
+source = "path+from-root-BE780D27389034A6"
+dependencies = [
+    "src5",
+    "std",
+]
