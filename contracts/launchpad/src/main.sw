@@ -27,6 +27,7 @@ use events::{
     BuyEvent,
     SellEvent,
     MintEvent,
+    BurnEvent,
 };
 use types::launchpad::Launchpad;
 use types::campaign::{CampaignStatus, Campaign};
@@ -43,7 +44,7 @@ configurable {
     DEFAULT_DECIMALS: u8 = 9,
     MIGRATION_TARGET: u64 = 1_000_000_000_000_000,
     INITIAL_SUPPLY: u64 = 1_000_000_000_000_000_000,
-    PLEDGE_ASSET_ID: b256 = 0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8,
+    PLEDGE_ASSET_ID: b256 = 0x60cf8cfde5ea5885829caafdcc3583114c90f74816254c75af8cedca050b0d0d,
     CURVE_SUPPLY_PERCENT: u64 = 80,
     INSTANT_LAUNCH_THRESHOLD_PERCENT: u64 = 80,
 }
@@ -110,6 +111,9 @@ fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
         users_share,
         remaining_supply,
         amm_supply,
+        base_price: campaign.curve.base_price,
+        slope: campaign.curve.slope,
+        max_supply: campaign.curve.max_supply,
     });
 
     true
@@ -376,9 +380,8 @@ impl Launchpad for Contract {
 
     #[storage(read, write)]
     #[payable]
-    /// Buys tokens from bonding curve.
-    /// Caller must send exact base-asset cost; returns cost.
-    fn buy(asset_id: AssetId, amount: u64, max_cost: u64) -> u64 {
+    /// Buys tokens from bonding curve using the sent base-asset budget.
+    fn buy(asset_id: AssetId) -> u64 {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
 
@@ -388,19 +391,23 @@ impl Launchpad for Contract {
         let pledge_asset = pledge_asset_id();
         require(sent_asset == pledge_asset, "Sent asset is not the pledge asset");
 
-        let cost = campaign.curve.buy_cost(amount);
-        require(cost <= max_cost, "Cost exceeds max");
-        let sent_amount = msg_amount();
-        require(sent_amount == cost, "Sent amount is not the cost");
+        let budget = msg_amount();
+        require(budget > 0, "Budget must be greater than 0");
 
-        let _ = campaign.curve.buy(amount);
+        let best = campaign.curve.tokens_for_budget(budget);
+        require(best > 0, "Budget too low");
+        let cost = campaign.curve.buy_cost(best);
+        let _ = campaign.curve.buy(best);
         storage.campaigns.insert(asset_id, campaign);
 
-        transfer(sender, asset_id, amount);
+        if budget > cost {
+            transfer(sender, pledge_asset_id(), budget - cost);
+        }
+        transfer(sender, asset_id, best);
         log(BuyEvent {
             asset_id,
             sender,
-            amount,
+            amount: best,
             cost,
             sold_supply: campaign.curve.sold_supply,
         });
@@ -410,8 +417,8 @@ impl Launchpad for Contract {
     #[storage(read, write)]
     #[payable]
     /// Sells tokens back to bonding curve.
-    /// Caller must send token amount; returns refund in base asset.
-    fn sell(asset_id: AssetId, amount: u64, min_refund: u64) -> u64 {
+    /// Caller sends token amount via msg_amount; receives payout in pledge asset.
+    fn sell(asset_id: AssetId) -> u64 {
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         let sender = msg_sender().unwrap();
 
@@ -419,24 +426,25 @@ impl Launchpad for Contract {
 
         let sent_asset = msg_asset_id();
         require(sent_asset == asset_id, "Sent asset is not the token");
-        let sent_amount = msg_amount();
-        require(sent_amount == amount, "Sent amount is not the sell amount");
 
-        let refund = campaign.curve.sell_refund(amount);
-        require(refund >= min_refund, "Refund below min");
+        let amount = msg_amount();
+        require(amount > 0, "Amount must be greater than 0");
+
+        let payout = campaign.curve.sell_payout(amount);
+        require(payout > 0, "Payout is zero");
 
         let _ = campaign.curve.sell(amount);
         storage.campaigns.insert(asset_id, campaign);
 
-        transfer(sender, pledge_asset_id(), refund);
+        transfer(sender, pledge_asset_id(), payout);
         log(SellEvent {
             asset_id,
             sender,
             amount,
-            refund,
+            payout,
             sold_supply: campaign.curve.sold_supply,
         });
-        refund
+        payout
     }
 
     #[storage(read, write)]
@@ -579,15 +587,13 @@ impl Launchpad for Contract {
     ) -> TokenInfo {
         read_token_info(asset_id)
     }
+}
 
-    #[storage(read, write), payable]
-    /// Mints token amount to recipient for given sub_id.
-    /// Updates total_supply storage and emits TotalSupplyEvent.
-    fn mint(
-        recipient: Identity,
-        sub_id: SubId,
-        amount: u64,
-    ) {
+impl SRC3 for Contract {
+    #[storage(read, write)]
+    fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
+        require(sub_id.is_some(), "Sub ID is required");
+        let sub_id = sub_id.unwrap();
         let asset_id = AssetId::new(ContractId::this(), sub_id);
         let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
         let new_supply = current_supply + amount;
@@ -597,6 +603,22 @@ impl Launchpad for Contract {
         log(MintEvent {
             asset_id,
             recipient,
+            amount,
+        }); 
+    }
+
+    #[storage(read, write), payable]
+    fn burn(sub_id: SubId, amount: u64) {
+        let asset_id = AssetId::new(ContractId::this(), sub_id);
+        let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
+        let new_supply = current_supply - amount;
+        storage.total_supply.insert(asset_id, new_supply);
+        burn(sub_id, amount);
+        let sender = msg_sender().unwrap();
+        TotalSupplyEvent::new(asset_id, new_supply, sender).log();
+        log(BurnEvent {
+            asset_id,
+            sender,
             amount,
         });
     }

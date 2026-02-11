@@ -1,6 +1,7 @@
 library;
 
 use std::assert::assert;
+use utils::*;
 
 pub struct BondingCurve {
     pub sold_supply: u64,       // tokens already sold via bonding curve
@@ -10,16 +11,22 @@ pub struct BondingCurve {
 }
 
 const PRICE_SCALE: u256 = 1_000_000_000u256;
+const SLOPE_SCALE: u256 = PRICE_SCALE * PRICE_SCALE;
+const TWO_U256: u256 = 2u256;
 
-fn u256_to_u64(val: u256) -> u64 {
-    let (a, b, c, d): (u64, u64, u64, u64) = asm(r1: val) {
-        r1: (u64, u64, u64, u64)
-    };
-    assert(a == 0);
-    assert(b == 0);
-    assert(c == 0);
-    d
+fn sqrt_u256(x: u256) -> u256 {
+    if x == 0u256 {
+        return 0u256;
+    }
+    let mut z = x;
+    let mut y = (x + 1u256) / 2u256;
+    while y < z {
+        z = y;
+        y = (z + x / z) / 2u256;
+    }
+    z
 }
+
 impl BondingCurve {
     pub fn new(max_supply: u64) -> Self {
         Self { sold_supply: 0, max_supply, base_price: 0, slope: 0 }
@@ -32,9 +39,9 @@ impl BondingCurve {
         let max_supply_256 = u256::from(self.max_supply);
 
         let avg_price = (total_pledged_256 * PRICE_SCALE) / users_share_256;
-        let slope = avg_price / max_supply_256;
+        let slope = (avg_price * SLOPE_SCALE) / max_supply_256;
 
-        let slope_component = (slope * users_share_256 * users_share_256) / 2;
+        let slope_component = (slope * users_share_256 * users_share_256) / (TWO_U256 * SLOPE_SCALE);
         let numerator = total_pledged_256 * PRICE_SCALE - slope_component;
         let base_price = numerator / users_share_256;
 
@@ -47,7 +54,11 @@ impl BondingCurve {
     }
 
     pub fn current_price(self) -> u64 {
-        self.base_price + self.slope * self.sold_supply
+        let base = u256::from(self.base_price);
+        let slope = u256::from(self.slope);
+        let supply = u256::from(self.sold_supply);
+        let price_scaled = base + (slope * supply) / SLOPE_SCALE;
+        u256_to_u64(price_scaled)
     }
     
     pub fn remaining_supply(self) -> u64 {
@@ -86,12 +97,34 @@ impl BondingCurve {
 
         let s_after = s + delta;
         let area = (s_after * s_after) - (s * s);
-        let cost_scaled = base * delta + (slope * area) / 2;
+        let cost_scaled = base * delta + (slope * area) / (TWO_U256 * SLOPE_SCALE);
         let cost = cost_scaled / PRICE_SCALE;
         u256_to_u64(cost)
     }
 
-    pub fn sell_refund(self, amount: u64) -> u64 {
+    /// Max tokens purchasable for `budget` (inverse of buy_cost via quadratic formula).
+    pub fn tokens_for_budget(self, budget: u64) -> u64 {
+        require(budget > 0, "Budget must be greater than 0");
+
+        let base = u256::from(self.base_price);
+        let slope = u256::from(self.slope);
+        let s = u256::from(self.sold_supply);
+        let budget_256 = u256::from(budget);
+
+        let delta = if slope == 0u256 {
+            (budget_256 * PRICE_SCALE) / base
+        } else {
+            let q = base * SLOPE_SCALE + slope * s;
+            let disc = q * q + TWO_U256 * slope * budget_256 * PRICE_SCALE * SLOPE_SCALE;
+            (sqrt_u256(disc) - q) / slope
+        };
+
+        let delta_u64 = u256_to_u64(delta);
+        let remaining = self.remaining_supply();
+        if delta_u64 > remaining { remaining } else { delta_u64 }
+    }
+
+    pub fn sell_payout(self, amount: u64) -> u64 {
         require(amount > 0, "Amount must be greater than 0");
         require(amount <= self.sold_supply, "Amount exceeds sold supply");
 
@@ -102,8 +135,8 @@ impl BondingCurve {
 
         let s_before = s - delta;
         let area = (s * s) - (s_before * s_before);
-        let refund_scaled = base * delta + (slope * area) / 2;
-        let refund = refund_scaled / PRICE_SCALE;
-        u256_to_u64(refund)
+        let payout_scaled = base * delta + (slope * area) / (TWO_U256 * SLOPE_SCALE);
+        let payout = payout_scaled / PRICE_SCALE;
+        u256_to_u64(payout)
     }
 }

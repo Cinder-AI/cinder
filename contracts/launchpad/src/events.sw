@@ -30,6 +30,9 @@ pub struct CampaignLaunchedEvent {
     pub users_share: u64,
     pub remaining_supply: u64,
     pub amm_supply: u64,
+    pub base_price: u64,
+    pub slope: u64,
+    pub max_supply: u64,
 }
 
 pub struct PledgedEvent {
@@ -57,12 +60,18 @@ pub struct SellEvent {
     pub asset_id: AssetId,
     pub sender: Identity,
     pub amount: u64,
-    pub refund: u64,
+    pub payout: u64,
     pub sold_supply: u64,
 }
 
 pub struct MintEvent {
     pub asset_id: AssetId,
     pub recipient: Identity,
+    pub amount: u64,
+}
+
+pub struct BurnEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
     pub amount: u64,
 }

@@ -30,10 +30,10 @@ abi Launchpad {
     fn refund_pledge(asset_id: AssetId) -> bool;
 
     #[storage(read, write), payable]
-    fn buy(asset_id: AssetId, amount: u64, max_cost: u64) -> u64;
+    fn buy(asset_id: AssetId) -> u64;
 
     #[storage(read, write), payable]
-    fn sell(asset_id: AssetId, amount: u64, min_refund: u64) -> u64;
+    fn sell(asset_id: AssetId) -> u64;
 
     #[storage(read)]
     fn get_campaign(asset_id: AssetId) -> Campaign;
@@ -58,9 +58,6 @@ abi Launchpad {
 
     #[storage(read)]
     fn get_campaigns() -> Vec<Campaign>;
-
-    #[storage(read, write), payable]
-    fn mint(recipient: Identity, sub_id: SubId, amount: u64);
 
     #[storage(read, write)]
     fn initialize(owner: Identity);
