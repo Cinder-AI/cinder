@@ -1,7 +1,5 @@
 library;
 
-pub mod single_asset_helpers;
-
 use src5::State;
 use std::identity::Identity;
 

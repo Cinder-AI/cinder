@@ -49,6 +49,7 @@ dependencies = [
     "src5",
     "src7",
     "std",
+    "utils",
 ]
 
 [[package]]
