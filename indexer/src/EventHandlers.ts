@@ -5,15 +5,9 @@ import {
   Cinder,
   Cinder_SetImageEvent,
   Cinder_StrLog,
-  Cinder_SetNameEvent,
-  Cinder_SetDecimalsEvent,
-  Cinder_SetSymbolEvent,
   Cinder_InitializeEvent,
   Cinder_SetOwnerEvent,
   Cinder_TotalSupplyEvent,
-  Cinder_Transfer,
-  Cinder_Mint,
-  Cinder_Burn,
   Launchpad,
   Launchpad_CampaignLaunchedEvent,
   Launchpad_BuyEvent,
@@ -23,15 +17,7 @@ import {
   Launchpad_PledgedEvent,
   Launchpad_SellEvent,
   Launchpad_ClaimEvent,
-  Launchpad_SetNameEvent,
-  Launchpad_SetSymbolEvent,
   Launchpad_CampaignDeniedEvent,
-  Launchpad_SetDecimalsEvent,
-  Launchpad_StrLog,
-  Launchpad_CampaignDeletedEvent,
-  Launchpad_Transfer,
-  Launchpad_Mint,
-  Launchpad_Burn,
   Campaign,
   Trade,
   Pledge,
@@ -47,8 +33,14 @@ import {
 import { getBlockHeight, getDayId, getDayStart, getTimestamp, getTxId } from "./utils/time";
 import { BASE_ASSET_DECIMALS, toHuman } from "./utils/units";
 
+const PRICE_SCALE = 1_000_000_000n;
+const SLOPE_SCALE = PRICE_SCALE * PRICE_SCALE;
+
 const identityToId = (identity: { case: "Address" | "ContractId"; payload: { bits: string } }) =>
   identity.payload.bits;
+
+const getCurrentPriceScaled = (basePrice: bigint, slope: bigint, soldSupply: bigint) =>
+  basePrice + (slope * soldSupply) / SLOPE_SCALE;
 
 Cinder.SetImageEvent.handler(async ({ event, context }) => {
   const entity: Cinder_SetImageEvent = {
@@ -66,29 +58,6 @@ Cinder.StrLog.handler(async ({ event, context }) => {
   context.Cinder_StrLog.set(entity);
 });
 
-Cinder.SetNameEvent.handler(async ({ event, context }) => {
-  const entity: Cinder_SetNameEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_SetNameEvent.set(entity);
-});
-
-Cinder.SetDecimalsEvent.handler(async ({ event, context }) => {
-  const entity: Cinder_SetDecimalsEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_SetDecimalsEvent.set(entity);
-});
-
-Cinder.SetSymbolEvent.handler(async ({ event, context }) => {
-  const entity: Cinder_SetSymbolEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_SetSymbolEvent.set(entity);
-});
 
 Cinder.InitializeEvent.handler(async ({ event, context }) => {
   const entity: Cinder_InitializeEvent = {
@@ -114,29 +83,6 @@ Cinder.TotalSupplyEvent.handler(async ({ event, context }) => {
   context.Cinder_TotalSupplyEvent.set(entity);
 });
 
-Cinder.Transfer.handler(async ({ event, context }) => {
-  const entity: Cinder_Transfer = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_Transfer.set(entity);
-});
-
-Cinder.Mint.handler(async ({ event, context }) => {
-  const entity: Cinder_Mint = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_Mint.set(entity);
-});
-
-Cinder.Burn.handler(async ({ event, context }) => {
-  const entity: Cinder_Burn = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Cinder_Burn.set(entity);
-});
 
 
 Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
@@ -153,9 +99,20 @@ Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
   const campaignId = event.params.asset_id.bits;
   const campaign = await context.Campaign.get(campaignId);
   if (campaign) {
+    const soldSupply = event.params.users_share;
+    const basePrice = event.params.base_price;
+    const slope = event.params.slope;
+    const currentPriceScaled = getCurrentPriceScaled(basePrice, slope, soldSupply);
+    const currentPrice = currentPriceScaled / PRICE_SCALE;
     const updatedCampaign: Campaign = {
       ...campaign,
       status: "Launched",
+      curve_base_price: basePrice,
+      curve_slope: slope,
+      curve_sold_supply: soldSupply,
+      curve_max_supply: event.params.max_supply,
+      current_price_scaled: currentPriceScaled,
+      current_price: currentPrice,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -212,9 +169,19 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
   context.Trade.set(trade);
 
   if (campaign) {
+    const soldSupply = event.params.sold_supply;
+    const currentPriceScaled = getCurrentPriceScaled(
+      campaign.curve_base_price,
+      campaign.curve_slope,
+      soldSupply,
+    );
+    const currentPrice = currentPriceScaled / PRICE_SCALE;
     const updatedCampaign: Campaign = {
       ...campaign,
       total_volume_base: campaign.total_volume_base + humanCost,
+      curve_sold_supply: soldSupply,
+      current_price_scaled: currentPriceScaled,
+      current_price: currentPrice,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -275,6 +242,12 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
     token_decimals: tokenInfo.decimals,
     token_image: tokenInfo.image,
     image: tokenInfo.image,
+    curve_base_price: 0n,
+    curve_slope: 0n,
+    curve_sold_supply: 0n,
+    curve_max_supply: 0n,
+    current_price_scaled: 0n,
+    current_price: 0n,
   });
 });
 
@@ -345,10 +318,10 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
   const dayId = getDayId(timestamp);
   const dayStart = getDayStart(timestamp);
 
-  const humanRefund = toHuman(event.params.refund, BASE_ASSET_DECIMALS);
-  await upsertUser(context, userId, timestamp, 1n, humanRefund);
+  const humanPayout = toHuman(event.params.payout, BASE_ASSET_DECIMALS);
+  await upsertUser(context, userId, timestamp, 1n, humanPayout);
   await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, humanRefund, -humanRefund);
+  await upsertDailyStats(context, dayId, dayStart, 1n, humanPayout, -humanPayout);
   await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
   await upsertCampaignDailyStats(
     context,
@@ -356,8 +329,8 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
     dayId,
     dayStart,
     1n,
-    humanRefund,
-    -humanRefund,
+    humanPayout,
+    -humanPayout,
   );
 
   const campaign = await context.Campaign.get(campaignId);
@@ -369,7 +342,7 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
     campaign_id: campaignId,
     side: "sell",
     amount_token: humanAmountToken,
-    amount_base: humanRefund,
+    amount_base: humanPayout,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
@@ -377,9 +350,19 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
   context.Trade.set(trade);
 
   if (campaign) {
+    const soldSupply = event.params.sold_supply;
+    const currentPriceScaled = getCurrentPriceScaled(
+      campaign.curve_base_price,
+      campaign.curve_slope,
+      soldSupply,
+    );
+    const currentPrice = currentPriceScaled / PRICE_SCALE;
     const updatedCampaign: Campaign = {
       ...campaign,
-      total_volume_base: campaign.total_volume_base + humanRefund,
+      total_volume_base: campaign.total_volume_base + humanPayout,
+      curve_sold_supply: soldSupply,
+      current_price_scaled: currentPriceScaled,
+      current_price: currentPrice,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -405,22 +388,6 @@ Launchpad.ClaimEvent.handler(async ({ event, context }) => {
   await upsertDailyStats(context, dayId, dayStart, 1n, 0n, 0n);
 });
 
-Launchpad.SetNameEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_SetNameEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_SetNameEvent.set(entity);
-});
-
-Launchpad.SetSymbolEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_SetSymbolEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_SetSymbolEvent.set(entity);
-});
-
 Launchpad.CampaignDeniedEvent.handler(async ({ event, context }) => {
   const entity: Launchpad_CampaignDeniedEvent = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
@@ -442,66 +409,3 @@ Launchpad.CampaignDeniedEvent.handler(async ({ event, context }) => {
     context.Campaign.set(updatedCampaign);
   }
 });
-
-Launchpad.SetDecimalsEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_SetDecimalsEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_SetDecimalsEvent.set(entity);
-});
-
-Launchpad.StrLog.handler(async ({ event, context }) => {
-  const entity: Launchpad_StrLog = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_StrLog.set(entity);
-});
-
-Launchpad.CampaignDeletedEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_CampaignDeletedEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_CampaignDeletedEvent.set(entity);
-
-  if (context.isPreload) {
-    return;
-  }
-
-  const campaignId = event.params.asset_id.bits;
-  const campaign = await context.Campaign.get(campaignId);
-  if (campaign) {
-    const updatedCampaign: Campaign = {
-      ...campaign,
-      status: "Deleted",
-    };
-    context.Campaign.set(updatedCampaign);
-  }
-});
-
-Launchpad.Transfer.handler(async ({ event, context }) => {
-  const entity: Launchpad_Transfer = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_Transfer.set(entity);
-});
-
-Launchpad.Mint.handler(async ({ event, context }) => {
-  const entity: Launchpad_Mint = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_Mint.set(entity);
-});
-
-Launchpad.Burn.handler(async ({ event, context }) => {
-  const entity: Launchpad_Burn = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_Burn.set(entity);
-});
-

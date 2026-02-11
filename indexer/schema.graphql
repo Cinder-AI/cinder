@@ -21,6 +21,12 @@ type Campaign {
   token_decimals: Int!
   token_image: String!
   image: String!
+  curve_base_price: BigInt!
+  curve_slope: BigInt!
+  curve_sold_supply: BigInt!
+  curve_max_supply: BigInt!
+  current_price_scaled: BigInt!
+  current_price: BigInt!
 }
 
 type Trade {
