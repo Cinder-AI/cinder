@@ -8,8 +8,7 @@ use src20::{SRC20, TotalSupplyEvent, SetNameEvent, SetSymbolEvent, SetDecimalsEv
 use src5::{SRC5, State};
 use types::cinder::CinderToken;
 use types::structs::TokenInfo;
-use utils::single_asset_helpers::*;
-use utils::utils::*;
+use utils::*;
 
 use std::{
     asset::{burn, mint_to},
@@ -35,34 +34,7 @@ storage {
     image: StorageString = StorageString{},
     total_supply: u64 = 0,
     owner: State = State::Uninitialized, // Launchpad Contract
-    name: StorageString = StorageString{},
-    symbol: StorageString = StorageString{},
-    decimals: u8 = 9,
 }
-
-
-abi EmitSRC20Events {
-    #[storage(read)]
-    fn emit_src20_events();
-}
-
-impl EmitSRC20Events for Contract {
-    #[storage(read)]
-    fn emit_src20_events() {
-        let asset = AssetId::default();
-        let sender = msg_sender().unwrap();
-        let name = storage.name.read_slice();
-        let symbol = storage.symbol.read_slice();
-        let image = storage.image.read_slice();
-        let decimals = storage.decimals.read();
-
-        SetNameEvent::new(asset, name, sender).log();
-        SetSymbolEvent::new(asset, symbol, sender).log();
-        SetDecimalsEvent::new(asset, decimals, sender).log();
-        SetImageEvent::new(asset, image, sender).log();
-    }
-}
-
 
 impl SRC5 for Contract {
     #[storage(read)]
@@ -79,22 +51,38 @@ impl SRC20 for Contract {
 
     #[storage(read)]
     fn total_supply(asset: AssetId) -> Option<u64> {
-        get_total_supply(storage.total_supply, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(storage.total_supply.read())
+        } else {
+            None
+        }
     }
 
     #[storage(read)]
     fn name(asset: AssetId) -> Option<String> {
-        get_name(storage.name, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(String::from_ascii_str(from_str_array(NAME)))
+        } else {
+            None
+        }
     }
 
     #[storage(read)]
     fn symbol(asset: AssetId) -> Option<String> {
-        get_symbol(storage.symbol, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(String::from_ascii_str(from_str_array(SYMBOL)))
+        } else {
+            None
+        }
     }
     
     #[storage(read)]
     fn decimals(asset: AssetId) -> Option<u8> {
-        get_decimals(storage.decimals, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(DECIMALS)
+        } else {
+            None
+        }
     }
 }
 
@@ -158,10 +146,6 @@ impl CinderToken for Contract {
         storage.initialized.write(true);
         storage.owner.write(State::Initialized(owner));
         log(InitializeEvent{ owner });
-
-        storage.name.write_slice(String::from_ascii_str(from_str_array(NAME)));
-        storage.symbol.write_slice(String::from_ascii_str(from_str_array(SYMBOL)));
-        storage.decimals.write(DECIMALS);
     }
 
     #[storage(read, write)]
@@ -173,9 +157,9 @@ impl CinderToken for Contract {
 
     #[storage(read)]
     fn asset_info(asset: AssetId) -> TokenInfo {
-        let name = storage.name.read_slice().unwrap_or(String::from_ascii_str(""));
-        let symbol = storage.symbol.read_slice().unwrap_or(String::from_ascii_str(""));
-        let decimals = storage.decimals.read();
+        let name = String::from_ascii_str(from_str_array(NAME));
+        let symbol = String::from_ascii_str(from_str_array(SYMBOL));
+        let decimals = DECIMALS;
         let image = storage.image.read_slice().unwrap_or(String::from_ascii_str(""));
         TokenInfo {
             asset_id: asset,
@@ -185,6 +169,7 @@ impl CinderToken for Contract {
             decimals: decimals,
             image: image,
         }
+
     }
 
     #[storage(read, write)]
