@@ -10,15 +10,20 @@ use std::{
     storage::storage_string::*,
     string::String,
 };
-use utils::single_asset_helpers::*;
+use utils::*;
+
+configurable {
+    NAME: str[5] = __to_str_array("Fuel7"),
+    SYMBOL: str[5] = __to_str_array("$FUEL"),
+    DECIMALS: u8 = 9,
+}
 
 storage {
     initialized: bool = false,
     total_supply: u64 = 0,
     owner: State = State::Uninitialized,
-    name: StorageString = StorageString{},
-    symbol: StorageString = StorageString{},
     decimals: u8 = 9,
+    image: StorageString = StorageString{},
 }
 
 abi FuelToken {
@@ -27,6 +32,9 @@ abi FuelToken {
 
     #[storage(read, write)]
     fn set_owner(owner: Identity);
+
+    #[storage(read, write)]
+    fn set_image(image: String);
 }
 
 impl SRC5 for Contract {
@@ -44,22 +52,38 @@ impl SRC20 for Contract {
 
     #[storage(read)]
     fn total_supply(asset: AssetId) -> Option<u64> {
-        get_total_supply(storage.total_supply, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(storage.total_supply.read())
+        } else {
+            None
+        }
     }
 
     #[storage(read)]
     fn name(asset: AssetId) -> Option<String> {
-        get_name(storage.name, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(String::from_ascii_str(from_str_array(NAME)))
+        } else {
+            None
+        }
     }
 
     #[storage(read)]
     fn symbol(asset: AssetId) -> Option<String> {
-        get_symbol(storage.symbol, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(String::from_ascii_str(from_str_array(SYMBOL)))
+        } else {
+            None
+        }
     }
 
     #[storage(read)]
     fn decimals(asset: AssetId) -> Option<u8> {
-        get_decimals(storage.decimals, asset, AssetId::default())
+        if asset == AssetId::default() {
+            Some(DECIMALS)
+        } else {
+            None
+        }
     }
 }
 
@@ -92,13 +116,16 @@ impl FuelToken for Contract {
         require(!storage.initialized.read(), "Contract already initialized");
         storage.initialized.write(true);
         storage.owner.write(State::Initialized(owner));
-        storage.name.write_slice(String::from_ascii_str("Fuel"));
-        storage.symbol.write_slice(String::from_ascii_str("FUEL"));
-        storage.total_supply.write(0);
     }
 
     #[storage(read, write)]
     fn set_owner(owner: Identity) {
+        require_owner(storage.owner.read());
         storage.owner.write(State::Initialized(owner));
+    }
+
+    #[storage(read, write)]
+    fn set_image(image: String) {
+        storage.image.write_slice(image);
     }
 }
