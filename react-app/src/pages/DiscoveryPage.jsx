@@ -5,17 +5,14 @@ import { useWallet } from '@fuels/react'
 import { TokenCard } from '../components/TokenCard.jsx'
 import { AmountSelector } from '../components/AmountSelector.jsx'
 import { useStore } from '../store/StoreProvider.jsx'
-import { useBalance } from '../hooks/useBalance.tsx'
 import { Button } from '../components/Button.jsx'
 import { Match } from '../components/Match.tsx'
 import { Airdrop } from '../components/Airdrop.tsx'
+import { useBalance } from '../hooks/useBalance.tsx'
 
-import { getContracts } from '../config/contracts.ts'
-import { Cinder } from '../sway-api/contracts/Cinder.ts'
-import { Launchpad } from '../sway-api/contracts/Launchpad.ts'
-import { Fuel } from '../sway-api/contracts/Fuel.ts'
+import { useContracts } from '../hooks/useContracts.tsx'
 
-import { formatNumber, toBaseUnits } from '../utils/index.ts'
+import { formatNumber, toBaseUnits, fromBaseUnits } from '../utils/index.ts'
 
 import { DollarIcon } from '../components/icons/DollarIcon.jsx'
 import { CrossIcon } from '../components/icons/CrossIcon.jsx'
@@ -26,16 +23,14 @@ export function DiscoveryPage() {
   const { getTokens, addPledge, getToken, getTokenByName, launchCampaign } = useStore();
   const navigate = useNavigate();
   const { wallet } = useWallet();
-  const [cinderContract, setContract] = useState(null);
-  const [launchpadContract, setLaunchpadContract] = useState(null);
-  const [fuelContract, setFuelContract] = useState(null);
+  const { launchpad: launchpadContract, assets } = useContracts();
+  const { balances } = useBalance();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [amount, setAmount] = useState(0);
   const tokens = useMemo(
     () => getTokens().filter(t => String(t.status || '').toLowerCase() === 'active'),
     [getTokens],
   );
-  const { balances, loading, error } = useBalance();
 
   const [showAirdrop, setShowAirdrop] = useState(false);
   const [showMatch, setShowMatch] = useState(false);
@@ -54,7 +49,16 @@ export function DiscoveryPage() {
   const passButtonRef = useRef(null);
   const swipeControls = useMemo(() => ({ buy: buyButtonRef, pass: passButtonRef }), [buyButtonRef, passButtonRef]);
   
-  const [balance, setBalance] = useState(250000);
+  const fuelBalance = useMemo(() => {
+    const fuelAssetId = String(assets?.fuelAssetId || '').toLowerCase();
+    if (!fuelAssetId) return 0;
+    const fuelTokenBalance = balances.find(
+      (b) => String(b.assetId || '').toLowerCase() === fuelAssetId,
+    );
+    if (!fuelTokenBalance) return 0;
+    return fromBaseUnits(fuelTokenBalance.amount || 0, fuelTokenBalance.metadata?.decimals ?? 9);
+  }, [assets?.fuelAssetId, balances]);
+  const maxPledgeAmount = Math.max(0, Math.floor(fuelBalance));
   const deadToken = getTokenByName('BERT');
   const livingToken = getTokenByName('WaiFU');
 
@@ -67,27 +71,6 @@ export function DiscoveryPage() {
       setMatchToken(tokens[0]); // ← Устанавливаем первый токен для дебага
     }
   }, [tokens.length]);
-
-  useEffect(() => {
-    if (!wallet) return;
-
-    let cancelled = false;
-
-    (async () => {
-      const ids = await getContracts();
-      if (cancelled) return;
-
-      setContract(new Cinder(ids.CINDER, wallet));
-      setLaunchpadContract(new Launchpad(ids.LAUNCHPAD, wallet));
-      setFuelContract(new Fuel(ids.FUEL, wallet));
-    })().catch((e) => {
-      console.error('Failed to init contracts:', e);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet]);
 
   useLayoutEffect(() => {
     const currentToken = tokens[currentIndex];
@@ -206,6 +189,14 @@ export function DiscoveryPage() {
       console.error('Invalid pledge amount:', amount);
       return false;
     }
+    if (!assets?.fuelAssetId) {
+      console.error('Fuel asset id is not ready');
+      return false;
+    }
+    if (amount > fuelBalance) {
+      console.error('Insufficient fuel balance:', { amount, fuelBalance });
+      return false;
+    }
 
     const assetBits = token.assetId || token.id;
     if (!assetBits) {
@@ -215,7 +206,8 @@ export function DiscoveryPage() {
 
     const amountBefore = token.totalPledged;
     const progressBefore = token.progress;
-    const baseAmount = toBaseUnits(amount);
+    const amountStr = amount.toString();
+    const decimalizedAmount = toBaseUnits(amount);
 
     try {
       const baseAssetIdRaw = wallet.provider.getBaseAssetId?.();
@@ -224,8 +216,8 @@ export function DiscoveryPage() {
       if (!baseAssetId) throw new Error('Base asset id not available');
 
       const { waitForResult } = await launchpadContract.functions
-        .pledge({ bits: assetBits }, baseAmount)
-        .callParams({ forward: { assetId: "0x177bae7c37ea20356abd7fc562f92677e9861f09d003d8d3da3c259a9ded7dd8", amount: baseAmount } })
+        .pledge({ bits: assetBits }, decimalizedAmount)
+        .callParams({ forward: { assetId: assets.fuelAssetId, amount: decimalizedAmount } })
         .call();
       const res = await waitForResult();
       console.log("res", res);
@@ -235,7 +227,6 @@ export function DiscoveryPage() {
     }
 
     // Вычисляем новые значения ЛОКАЛЬНО, не полагаясь на стейт
-    setBalance(prev => prev - amount);
     const newTotalPledged = amountBefore + amount;
     const newProgress = Math.round((newTotalPledged / token.target) * 100);
     
@@ -323,11 +314,11 @@ export function DiscoveryPage() {
       </div>
       <div className="discovery-page-bottom-buttons">
         <AmountSelector
-          balance={`${formatNumber(balance)} stFUEL`}
+          balance={`${formatNumber(fuelBalance)} FUEL`}
           onAmountChange={(amount) => setAmount(amount)}
           amount={amount}
           minRange={0}
-          maxRange={250000}
+          maxRange={maxPledgeAmount}
           showButtons={true}
         />
         <div className="action-buttons">
