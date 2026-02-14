@@ -14,5 +14,10 @@ react-app/src/sway-api/contracts/*Factory.ts
 react-app/.pnpm-store/
 react-app/.vite/
 react-app/src/sway-api/
+react-app/deploy
 
 indexer/.pnpm-store/
+**/.pnpm-lock.yaml
+**/*.lock
+
+**/__pycache__
