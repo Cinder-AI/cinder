@@ -22,6 +22,7 @@ use events::{
     CampaignDeniedEvent,
     CampaignDeletedEvent,
     CampaignLaunchedEvent,
+    CampaignMigratedEvent,
     PledgedEvent,
     ClaimEvent,
     BuyEvent,
@@ -103,6 +104,7 @@ fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
     campaign.curve.initialize(campaign.total_pledged, users_share);
     mint(campaign.sub_id, INITIAL_SUPPLY);
     campaign.amm_reserved = amm_supply;
+    campaign.curve_reserve = campaign.total_pledged;
     campaign.status = CampaignStatus::Launched;
     storage.campaigns.insert(asset_id, campaign);
     log(CampaignLaunchedEvent {
@@ -114,6 +116,7 @@ fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
         base_price: campaign.curve.base_price,
         slope: campaign.curve.slope,
         max_supply: campaign.curve.max_supply,
+        curve_reserve: campaign.curve_reserve,
     });
 
     true
@@ -261,6 +264,7 @@ impl Launchpad for Contract {
             status: CampaignStatus::Active,
             token_id: asset_id,
             total_pledged: 0,
+            curve_reserve: 0,
             total_supply: 0,
             sub_id: sub_id,
             curve: curve,
@@ -352,6 +356,26 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
+
+    /// Migrates a token to Reactor DEX
+    fn migrate(asset_id: AssetId) -> bool {
+        require_owner();
+        let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+        campaign.status = CampaignStatus::Migrated;
+        storage.campaigns.insert(asset_id, campaign);
+        let sender = msg_sender().unwrap();
+        transfer(sender, asset_id, campaign.amm_reserved);
+        transfer(sender, pledge_asset_id(), campaign.curve_reserve);
+        log(CampaignMigratedEvent {
+            asset_id,
+            sender,
+            base_reserve: campaign.curve_reserve,
+            token_reserve: campaign.amm_reserved,
+        });
+        true
+    }
+
+    #[storage(read, write)]
     /// Refunds user pledge after campaign denial.
     /// User can refund only once; returns false if no pledge found.
     fn refund_pledge(asset_id: AssetId) -> bool {
@@ -398,6 +422,7 @@ impl Launchpad for Contract {
         require(best > 0, "Budget too low");
         let cost = campaign.curve.buy_cost(best);
         let _ = campaign.curve.buy(best);
+        campaign.curve_reserve += cost;
         storage.campaigns.insert(asset_id, campaign);
 
         if budget > cost {
@@ -410,6 +435,7 @@ impl Launchpad for Contract {
             amount: best,
             cost,
             sold_supply: campaign.curve.sold_supply,
+            curve_reserve: campaign.curve_reserve,
         });
         cost
     }
@@ -432,8 +458,10 @@ impl Launchpad for Contract {
 
         let payout = campaign.curve.sell_payout(amount);
         require(payout > 0, "Payout is zero");
+        require(campaign.curve_reserve >= payout, "Insufficient curve reserve");
 
         let _ = campaign.curve.sell(amount);
+        campaign.curve_reserve -= payout;
         storage.campaigns.insert(asset_id, campaign);
 
         transfer(sender, pledge_asset_id(), payout);
@@ -443,6 +471,7 @@ impl Launchpad for Contract {
             amount,
             payout,
             sold_supply: campaign.curve.sold_supply,
+            curve_reserve: campaign.curve_reserve,
         });
         payout
     }

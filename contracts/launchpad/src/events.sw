@@ -33,6 +33,14 @@ pub struct CampaignLaunchedEvent {
     pub base_price: u64,
     pub slope: u64,
     pub max_supply: u64,
+    pub curve_reserve: u64, // FUEL
+}
+
+pub struct CampaignMigratedEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub base_reserve: u64, // FUEL
+    pub token_reserve: u64,
 }
 
 pub struct PledgedEvent {
@@ -54,6 +62,7 @@ pub struct BuyEvent {
     pub amount: u64,
     pub cost: u64,
     pub sold_supply: u64,
+    pub curve_reserve: u64, // FUEL
 }
 
 pub struct SellEvent {
@@ -62,6 +71,7 @@ pub struct SellEvent {
     pub amount: u64,
     pub payout: u64,
     pub sold_supply: u64,
+    pub curve_reserve: u64, // FUEL
 }
 
 pub struct MintEvent {
