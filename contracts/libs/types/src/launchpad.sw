@@ -24,6 +24,9 @@ abi Launchpad {
     fn launch_campaign(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]
+    fn migrate(asset_id: AssetId) -> bool;
+
+    #[storage(read, write)]
     fn claim(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]

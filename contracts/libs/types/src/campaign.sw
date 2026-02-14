@@ -37,6 +37,7 @@ pub struct Campaign {
     pub token_id: AssetId,
     pub sub_id: SubId,
     pub total_pledged: u64, 
+    pub curve_reserve: u64,
     pub total_supply: u64,
     pub curve: BondingCurve,
     pub amm_reserved: u64,
