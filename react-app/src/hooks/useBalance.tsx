@@ -1,11 +1,9 @@
-// react-app/src/hooks/useBalance.tsx
-
-import { useEffect, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useWallet } from '@fuels/react';
-import { Cinder } from '../sway-api/contracts/Cinder';
-import { Launchpad, TokenInfoOutput } from '../sway-api/contracts/Launchpad';
+import { useQuery } from '@tanstack/react-query';
+import { TokenInfoOutput } from '../sway-api/contracts/Launchpad';
 import { fuelGraphQL } from '../services/fuelGraphQL';
-import { getContracts } from '../config/contracts';
+import { useContracts } from './useContracts';
 
 interface TokenMetadata {
   name: string;
@@ -24,80 +22,45 @@ interface EnrichedBalance {
 
 export const useBalance = () => {
   const { wallet } = useWallet();
-  const [balances, setBalances] = useState<EnrichedBalance[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const { launchpad, cinder, assets, initialized } = useContracts();
+  const walletAddress = wallet?.address?.toString() || '';
 
-  const [launchpadTokens, setLaunchpadTokens] = useState<Map<string, TokenInfoOutput>>(new Map());
-  const [cinderAssetId, setCinderAssetId] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  const launchpadAssetsQuery = useQuery({
+    queryKey: ['launchpad-assets', launchpad?.id?.toString?.() || 'none'],
+    enabled: Boolean(launchpad),
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!launchpad) return new Map<string, TokenInfoOutput>();
+      const assetsRes = await launchpad.functions.get_assets().get();
+      const tokensMap = new Map<string, TokenInfoOutput>();
+      assetsRes.value.forEach((token) => {
+        tokensMap.set(token.asset_id.bits, token);
+      });
+      return tokensMap;
+    },
+  });
 
-  // Инициализация контрактов
-  useEffect(() => {
-    if (!wallet) return;
-
-    const init = async () => {
-      try {
-        const ids = await getContracts();
-        const cinderContract = new Cinder(ids.CINDER, wallet);
-        const launchpadContract = new Launchpad(ids.LAUNCHPAD, wallet);
-
-        const [assetsRes, cinderAssetRes] = await Promise.all([
-          launchpadContract.functions.get_assets().get(),
-          cinderContract.functions.default_asset().get(),
-        ]);
-
-        const tokensMap = new Map<string, TokenInfoOutput>();
-        assetsRes.value.forEach(token => {
-          tokensMap.set(token.asset_id.bits, token);
-        });
-
-        setLaunchpadTokens(tokensMap);
-        setCinderAssetId(cinderAssetRes.value.bits);
-        setInitialized(true);
-        
-        console.log('Contracts initialized:', {
-          launchpadTokensCount: tokensMap.size,
-          cinderAssetId: cinderAssetRes.value.bits,
-        });
-      } catch (err) {
-        console.error('Error initializing contracts:', err);
-        setError(err as Error);
-      }
-    };
-
-    init();
-  }, [wallet]);
-
-  // Получение и обогащение балансов
-  const fetchBalances = useCallback(async () => {
-    if (!wallet || !initialized) {
-      console.log('Waiting for initialization...', { wallet: !!wallet, initialized });
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const rawBalances = await fuelGraphQL.getBalances(wallet.address.toString());
-      console.log('Raw balances from GraphQL:', rawBalances);
-
+  const balancesQuery = useQuery({
+    queryKey: ['wallet-balances', walletAddress, launchpadAssetsQuery.dataUpdatedAt],
+    enabled: Boolean(walletAddress && initialized && launchpadAssetsQuery.data),
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<EnrichedBalance[]> => {
+      if (!walletAddress) return [];
+      const rawBalances = await fuelGraphQL.getBalances(walletAddress);
+      const launchpadTokens = launchpadAssetsQuery.data || new Map<string, TokenInfoOutput>();
+      const cinderAssetId = assets?.cinderAssetId || null;
       const enriched: EnrichedBalance[] = [];
-      const ids = await getContracts();
-      const cinderContract = new Cinder(ids.CINDER, wallet);
 
       for (const balance of rawBalances) {
         const { assetId, amount } = balance;
 
-        // Проверка Cinder токена
-        if (cinderAssetId && assetId === cinderAssetId) {
+        if (cinder && cinderAssetId && assetId === cinderAssetId) {
           const [nameRes, symbolRes, decimalsRes] = await Promise.all([
-            cinderContract.functions.name({ bits: assetId }).get(),
-            cinderContract.functions.symbol({ bits: assetId }).get(),
-            cinderContract.functions.decimals({ bits: assetId }).get(),
+            cinder.functions.name({ bits: assetId }).get(),
+            cinder.functions.symbol({ bits: assetId }).get(),
+            cinder.functions.decimals({ bits: assetId }).get(),
           ]);
-
           enriched.push({
             assetId,
             amount,
@@ -111,7 +74,6 @@ export const useBalance = () => {
           continue;
         }
 
-        // Проверка Launchpad токена
         const launchpadToken = launchpadTokens.get(assetId);
         if (launchpadToken) {
           enriched.push({
@@ -129,36 +91,24 @@ export const useBalance = () => {
           continue;
         }
 
-        // Остальные токены
         enriched.push({ assetId, amount, source: 'other' });
       }
 
-      console.log('Enriched balances:', enriched);
-      setBalances(enriched);
-    } catch (err) {
-      console.error('Error fetching balances:', err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [wallet, launchpadTokens, cinderAssetId, initialized]);
+      return enriched;
+    },
+  });
 
-  useEffect(() => {
-    if (initialized) {
-      fetchBalances();
-    }
-  }, [initialized, fetchBalances]);
-
-  const ourTokens = balances.filter(b => b.source !== 'other');
-  const otherTokens = balances.filter(b => b.source === 'other');
+  const balances = balancesQuery.data || [];
+  const ourTokens = useMemo(() => balances.filter((b) => b.source !== 'other'), [balances]);
+  const otherTokens = useMemo(() => balances.filter((b) => b.source === 'other'), [balances]);
 
   return {
     balances,
     ourTokens,
     otherTokens,
-    loading,
-    error,
-    refetch: fetchBalances,
-    initialized,
+    loading: balancesQuery.isLoading || launchpadAssetsQuery.isLoading,
+    error: (balancesQuery.error as Error | null) || (launchpadAssetsQuery.error as Error | null),
+    refetch: balancesQuery.refetch,
+    initialized: initialized && Boolean(launchpadAssetsQuery.data),
   };
 };
