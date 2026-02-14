@@ -1,9 +1,7 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/StoreProvider.jsx'
-import { fromBaseUnits } from '../utils/index.js'
 import { useConnect, useConnectUI, useIsConnected } from '@fuels/react'
-import { useBalance } from '../hooks/useBalance.tsx'
 import { useContracts } from '../hooks/useContracts.tsx'
 import { useWallet } from '@fuels/react'
 import { getContracts } from '../config/contracts.ts'
@@ -20,7 +18,6 @@ import { Fuel } from '../sway-api/contracts/Fuel.ts'
 export function Header({ title = 'Cinder', showCreate = false, showBalance = false, showBackButton = false }) {
   const navigate = useNavigate()
   const { getUserHoldings } = useStore()
-  const { balances } = useBalance()
   const [profileOpen, setProfileOpen] = useState(false)
   const { connect } = useConnectUI()
   const { _connect } = useConnect()
@@ -30,12 +27,6 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
   const contracts  = useContracts()
   const launchpadContract = contracts?.launchpad
   const [fuelContract, setFuelContract] = useState(null)
-  const cinBalance = useMemo(() => {
-    const cin = balances.find(b => b.metadata?.symbol === 'CIN' || b.metadata?.name === 'CIN')
-    if (!cin) return '0'
-    const decimals = cin.metadata?.decimals ?? 9
-    return fromBaseUnits(cin.amount ?? 0, decimals).toString()
-  }, [balances])
 
   useEffect(() => {
     let cancelled = false;
@@ -45,21 +36,6 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
       const ids = await getContracts();
       if (cancelled || !ids?.FUEL) return;
       setFuelContract(new Fuel(ids.FUEL, launchpadContract.account));
-      const { value: campaigns } = await launchpadContract.functions.get_campaigns().get();
-      const normalized = campaigns.map(c => ({
-        ...c,
-        target: c.target.toString(10),
-        total_pledged: c.total_pledged.toString(10),
-        total_supply: c.total_supply.toString(10),
-        curve: {
-          sold_supply: c.curve.sold_supply.toString(10),
-          max_supply: c.curve.max_supply.toString(10),
-          base_price: c.curve.base_price.toString(10),
-          slope: c.curve.slope.toString(10),
-        },
-        amm_reserved: c.amm_reserved.toString(10),
-      }));
-      console.log('normalized', normalized);
     })();
 
     return () => {
@@ -144,7 +120,7 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
             <Button label="+ Create" type="create" className="header-create-btn" onClick={onCreateClick} />
           )}
           {isConnected && showBalance && (
-            <div className="header-balance">$CIN {cinBalance}</div>
+            <div className="header-balance">$CIN {balance.CIN}</div>
           )}
           {profile()}
         </div>

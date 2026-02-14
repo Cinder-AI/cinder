@@ -8,10 +8,9 @@ import { useStore } from '../store/StoreProvider.jsx'
 import { useContracts } from '../hooks/useContracts.tsx'
 
 export function CreateTokenPage() {
-  const { refreshCampaigns } = useStore()
+  const { addToken } = useStore()
   const contracts = useContracts()
   const launchpad = contracts?.launchpad
-  const storageBaseUrl = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000'
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
@@ -31,49 +30,16 @@ export function CreateTokenPage() {
     reader.readAsDataURL(file)
   }
 
-  function resolveStorageUrl(path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) return path
-    const prefix = path.startsWith('/') ? '' : '/'
-    return `${storageBaseUrl}${prefix}${path}`
-  }
-
-  async function uploadImage(file) {
-    const formData = new FormData()
-    formData.append('file', file)
-    const response = await fetch(`${storageBaseUrl}/upload`, {
-      method: 'POST',
-      body: formData
-    })
-    if (!response.ok) {
-      const message = await response.text().catch(() => '')
-      throw new Error(message || 'Image upload failed')
-    }
-    const data = await response.json()
-    return resolveStorageUrl(data.url || '')
-  }
-
   async function handleCreate() {
     if (!name || !ticker) return alert('Please fill in coin name and ticker')
     if (!imageData) return alert('Please select an image')
     if (!launchpad) return alert('Connect wallet to create a campaign')
     if (isCreating) return
     setIsCreating(true)
-    const file = fileInputRef.current?.files?.[0]
-    if (!file) {
-      setIsCreating(false)
-      return alert('Please select an image')
-    }
-    let imageUrl = ''
-    try {
-      imageUrl = await uploadImage(file)
-    } catch (error) {
-      setIsCreating(false)
-      return alert(error?.message || 'Failed to upload image')
-    }
     const token = {
       name: name,
       description: description,
-      image: imageUrl,
+      image: imageData,
       ticker: ticker,
       progress: 0,
       creator: 'user',
@@ -88,14 +54,12 @@ export function CreateTokenPage() {
     }
     try {
       const { waitForResult } = await launchpad.functions
-        .create_campaign(name.trim(), ticker.trim(), description ?? '', imageUrl)
+        .create_campaign(name.trim(), ticker.trim(), description ?? '', imageData)
         .call()
       const { value: assetId } = await waitForResult()
       const created = { ...token, assetId: assetId?.bits || '' }
+      addToken(created)
       setCreatedToken(created)
-      refreshCampaigns().catch((error) => {
-        console.error('Failed to refresh campaigns:', error)
-      })
       setSheetOpen(true)
     } catch (error) {
       alert(error?.message || 'Failed to create campaign')

@@ -73,16 +73,16 @@ export function HoldingsPage() {
 
     return Array.from(rows.values())
   }, [balances, pledges, getTokenByAssetId, getTokenByName, getTokenByTicker])
-  console.log("tokens", tokens);
   const claim = async (token) => {
+    console.log('yo');
     if (!launchpadContract || !token?.assetId) return
     try {
       const status = String(token.status || '').toLowerCase()
-      if (status === 'Launched')
+      if (status === 'launched') {
         await launchpadContract.functions.claim({ bits: token.assetId }).call()
-      if (status === 'Failed')
-        console.log('op')
+      } else if (status === 'denied') {
         await launchpadContract.functions.refund_pledge({ bits: token.assetId }).call()
+      }
       await Promise.all([refetch(), loadPledges()])
     } catch (err) {
       console.error('Claim failed:', err)

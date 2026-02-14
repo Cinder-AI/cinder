@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../utils/index.ts";
 
 const MOVEMENT_RESET_DELAY = 600;
+const LAUNCH_THRESHOLD = 800_000;
 
 const selectTopTokens = (tokens) =>
   tokens.slice().sort((a, b) => b.totalPledged - a.totalPledged).slice(0, 10);
@@ -33,6 +34,9 @@ const detectMovements = (current, prevRanks) =>
     return acc;
   }, {});
 
+const pickLaunchCandidate = (tokens) =>
+  tokens.find(token => token.totalPledged >= LAUNCH_THRESHOLD && token.status === "active");
+
 const useMovementTracking = (tokens, movements, setMovements, prevRanksRef) => {
   useEffect(() => {
     const rankMap = buildRankMap(tokens);
@@ -47,10 +51,86 @@ const useMovementTracking = (tokens, movements, setMovements, prevRanksRef) => {
   }, [movements, setMovements]);
 };
 
+const useTopLaunchDemo = (leader, addPledgeRef, launchCampaignRef, launchDemoRef, setMovements) => {
+  useEffect(() => {
+    if (launchDemoRef.current || !leader || leader.status !== "active") return;
+
+    const leaderId = leader.id;
+    const boostDelta = Math.max(0, LAUNCH_THRESHOLD - leader.totalPledged + 50);
+    const boostTimer = setTimeout(() => addPledgeRef.current(leaderId, boostDelta), 6000);
+
+    let removalTimer;
+    const launchTimer = setTimeout(() => {
+      setMovements(prev => ({ ...prev, [leaderId]: "launch" }));
+      removalTimer = setTimeout(() => {
+        launchCampaignRef.current(leaderId);
+        launchDemoRef.current = true;
+      }, MOVEMENT_RESET_DELAY);
+    }, 7000);
+
+    return () => {
+      clearTimeout(boostTimer);
+      clearTimeout(launchTimer);
+      if (removalTimer) clearTimeout(removalTimer);
+    };
+  }, [leader?.id, leader?.status, launchDemoRef, setMovements]);
+};
+
+const useScriptedSwapDemo = (getTokensRef, addPledgeRef, swapDemoRef, onFinished) => {
+  useEffect(() => {
+    if (swapDemoRef.current) return;
+
+    const timers = [];
+    const activeTokens = () =>
+      getTokensRef.current().filter(token => !token.isSystemToken && token.status !== "launched");
+
+    const findByName = (tokens, name) =>
+      tokens.find(t => t.name?.toLowerCase() === name.toLowerCase());
+
+    const steps = [
+      { fromName: "ELON", overName: "TRUMP", delay: 1500 },
+      { fromName: "WaiFU", overName: "Pengu", delay: 3000 },
+      { fromName: "WaiFU", overName: "TRUMP", delay: 4500 },
+      { fromName: "WaiFU", overName: "ELON", delay: 6000 },
+    ];
+
+    const hasInitialTop = selectTopTokens(activeTokens()).length >= 4;
+    if (!hasInitialTop) return;
+
+    const boost = ({ fromName, overName, delay }) => {
+      const timer = setTimeout(() => {
+        const tokens = selectTopTokens(activeTokens());
+        const from = findByName(tokens, fromName);
+        const over = findByName(tokens, overName);
+        if (!from || !over) return;
+
+        const randomAmount = Math.floor(Math.random() * 10000) + 1000;
+        const delta = Math.max(10, over.totalPledged - from.totalPledged + randomAmount);
+        addPledgeRef.current(from.id, delta);
+      }, delay);
+      timers.push(timer);
+    };
+
+    steps.forEach(boost);
+
+    const finishTimer = setTimeout(() => {
+      swapDemoRef.current = true;
+      onFinished?.();
+    }, 6500);
+    timers.push(finishTimer);
+
+    return () => timers.forEach(clearTimeout);
+  }, [addPledgeRef, swapDemoRef, getTokensRef, onFinished]);
+};
+
 export const LeaderboardPage = () => {
-  const { getTokens } = useStore();
+  const { getTokens, addPledge, launchCampaign } = useStore();
   const [movements, setMovements] = useState({});
   const prevRanksRef = useRef({});
+  const swapDemoRef = useRef(false);
+  const launchDemoRef = useRef(false);
+  const addPledgeRef = useRef(addPledge);
+  const launchCampaignRef = useRef(launchCampaign);
   const getTokensRef = useRef(getTokens);
   const dropBottomTokens = useCallback(() => {
     const node = tableRef.current;
@@ -119,13 +199,8 @@ export const LeaderboardPage = () => {
   }, [isScrollable, syncScrollable]);
 
   const tokens = useMemo(
-    () =>
-      getTokens().filter(
-        token =>
-          !token.isSystemToken &&
-          String(token.status || '').toLowerCase() !== 'launched',
-      ),
-    [getTokens],
+    () => getTokens().filter(token => !token.isSystemToken && token.status !== "launched"),
+    [getTokens]
   );
   
   const top10Tokens = useMemo(() => selectTopTokens(tokens), [tokens]);
@@ -134,7 +209,10 @@ export const LeaderboardPage = () => {
   useEffect(() => { getTokensRef.current = getTokens; }, [getTokens]);
 
   useMovementTracking(top10Tokens, movements, setMovements, prevRanksRef);
-  // Demo flow removed: leaderboard now reflects indexer data only.
+  useScriptedSwapDemo(getTokensRef, addPledgeRef, swapDemoRef, dropBottomTokens);
+
+//   const leader = top10Tokens[0];
+//   useTopLaunchDemo(leader, addPledgeRef, launchCampaignRef, launchDemoRef, setMovements);
   
   useLayoutEffect(() => {
     const table = tableRef.current;

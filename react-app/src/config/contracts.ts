@@ -11,9 +11,9 @@ export type ContractIds = {
 const env = (appEnvironment ?? 'local') as DappEnvironment;
 
 const TESTNET: ContractIds = {
-  CINDER: '0x4422903b2ebbd43b3ae32ad9b6d0802fa19ab88903d61b429d5771a36fa51286',
-  LAUNCHPAD: '0x59d4475501eb74ebfc1afdf58ee7fb5d641dcbc5058f354bd99b4b61c93658f5',
-  FUEL: '0xbff9e01a89b8563f453c3ca7a4e1ea0f87b90e48cd30df613978d4a4f0caaf4e',
+  CINDER: '0x4214e6Fc579b26D42bf87d77e0F58a027905050503D361Ab4cfdCD74f69f4042',
+  LAUNCHPAD: '0x732a37e72cb2664ac09cdde172c722745b9e7e201f34e76eb6471fb561c6bbf2',
+  FUEL: '0x3b3e04f181faba12392a348cd8ad9363af0e5e23dc44ef66a316e90dde7a5ca5',
 };
 
 // Заполни, когда будут mainnet-деплои.
