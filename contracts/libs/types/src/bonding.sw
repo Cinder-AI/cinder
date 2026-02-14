@@ -33,6 +33,11 @@ impl BondingCurve {
     }
 
     pub fn initialize(ref mut self, total_pledged: u64, users_share: u64) {
+        require(self.max_supply > 0, "Max supply must be greater than 0");
+        require(users_share > 0, "Users share must be greater than 0");
+        require(total_pledged > 0, "Total pledged must be greater than 0");
+        require(users_share <= self.max_supply, "Users share exceeds max supply");
+
         self.sold_supply = users_share;
         let total_pledged_256 = u256::from(total_pledged);
         let users_share_256 = u256::from(users_share);
@@ -112,6 +117,7 @@ impl BondingCurve {
         let budget_256 = u256::from(budget);
 
         let delta = if slope == 0u256 {
+            require(base > 0u256, "Base price must be greater than 0");
             (budget_256 * PRICE_SCALE) / base
         } else {
             let q = base * SLOPE_SCALE + slope * s;
