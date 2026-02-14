@@ -36,6 +36,8 @@ type Trade {
   side: String!
   amount_token: BigInt!
   amount_base: BigInt!
+  price_scaled: BigInt
+  price: BigInt
   timestamp: BigInt!
   tx_id: String!
   block_height: BigInt!
