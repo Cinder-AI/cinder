@@ -155,6 +155,13 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
   const campaign = await context.Campaign.get(campaignId);
   const tokenDecimals = campaign?.token_decimals ?? 0;
   const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
+  const soldSupply = event.params.sold_supply;
+  const currentPriceScaled =
+    campaign !== undefined
+      ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
+      : undefined;
+  const currentPrice =
+    currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
@@ -162,20 +169,15 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
     side: "buy",
     amount_token: humanAmountToken,
     amount_base: humanCost,
+    price_scaled: currentPriceScaled,
+    price: currentPrice,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
   };
   context.Trade.set(trade);
 
-  if (campaign) {
-    const soldSupply = event.params.sold_supply;
-    const currentPriceScaled = getCurrentPriceScaled(
-      campaign.curve_base_price,
-      campaign.curve_slope,
-      soldSupply,
-    );
-    const currentPrice = currentPriceScaled / PRICE_SCALE;
+  if (campaign && currentPriceScaled !== undefined && currentPrice !== undefined) {
     const updatedCampaign: Campaign = {
       ...campaign,
       total_volume_base: campaign.total_volume_base + humanCost,
@@ -336,6 +338,13 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
   const campaign = await context.Campaign.get(campaignId);
   const tokenDecimals = campaign?.token_decimals ?? 0;
   const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
+  const soldSupply = event.params.sold_supply;
+  const currentPriceScaled =
+    campaign !== undefined
+      ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
+      : undefined;
+  const currentPrice =
+    currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
@@ -343,20 +352,15 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
     side: "sell",
     amount_token: humanAmountToken,
     amount_base: humanPayout,
+    price_scaled: currentPriceScaled,
+    price: currentPrice,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
   };
   context.Trade.set(trade);
 
-  if (campaign) {
-    const soldSupply = event.params.sold_supply;
-    const currentPriceScaled = getCurrentPriceScaled(
-      campaign.curve_base_price,
-      campaign.curve_slope,
-      soldSupply,
-    );
-    const currentPrice = currentPriceScaled / PRICE_SCALE;
+  if (campaign && currentPriceScaled !== undefined && currentPrice !== undefined) {
     const updatedCampaign: Campaign = {
       ...campaign,
       total_volume_base: campaign.total_volume_base + humanPayout,
