@@ -1,3 +1,5 @@
+import { arrayify, concat, sha256 } from "fuels";
+
 export function formatNumber(num: number, useSymbol: boolean = true): string {
   if (num === 0) return '0';
   
@@ -41,3 +43,8 @@ export const fromBaseUnits = (value: bigint | string | number, decimals: number 
   const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
   return Number(fractionStr ? `${whole.toString()}.${fractionStr}` : whole.toString());
 };
+
+export const toAssetIdString = (contractId: string, subId: string = '0x0000000000000000000000000000000000000000000000000000000000000000') => {
+  const bytes = concat([arrayify(contractId), arrayify(subId)])
+  return sha256(bytes)
+}

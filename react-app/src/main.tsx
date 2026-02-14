@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import { StoreProvider } from './store/StoreProvider.jsx'
+import { ContractsProvider } from './hooks/useContracts.tsx'
 import { providerUrl, providerChainId } from './lib.tsx'
 
 const queryClient = new QueryClient();
@@ -38,9 +39,11 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <FuelProvider theme='dark' networks={networks} fuelConfig={{ connectors }}>
-        <StoreProvider>
-          <App />
-        </StoreProvider>
+        <ContractsProvider>
+          <StoreProvider>
+            <App />
+          </StoreProvider>
+        </ContractsProvider>
       </FuelProvider>
     </QueryClientProvider>
   </StrictMode>,
