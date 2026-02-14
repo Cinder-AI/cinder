@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Token } from '../types/index'
 import { formatNumber } from '../utils/index'
 import { BondingCurve } from './BondingCurve'
+import { sseApi, type ChartHistoryResponse, type ChartSummary } from '../services/indexerGraphQL'
 import '@styles/components/chart.css'
 
 interface ChartProps {
@@ -19,15 +20,12 @@ const LINE_COLOR = '#22c55e'
 const CANVAS_BG_COLOR = '#F5F5F5'
 const LINE_WIDTH = 4
 const SERIES_LENGTH = 120
-const TICK_MS = 900
-const JUMP_PROBABILITY = 0.22
-const JUMP_MIN = 0.985   // до -1.5% за тик
-const JUMP_MAX = 1.06    // до +6% за тик
 const MIN_PRICE = 0.0000001
 const DEFAULT_PRICE = 0.00000558
-const NOISE = 0.001
 const MARKET_CAP_ANIMATION_MS = 1200
-const PROGRESS_ANIMATION_MS = 1200 * 100
+const HISTORY_WINDOW_SEC = 24 * 60 * 60
+const HISTORY_INTERVAL_SEC = 5 * 60
+const DEFAULT_SSE_URL = 'http://localhost:5002'
 
 const clampProgress = (value?: number) => {
   const numeric = typeof value === 'number' && !Number.isNaN(value) ? value : 0
@@ -36,20 +34,152 @@ const clampProgress = (value?: number) => {
 
 const clampPrice = (price?: number) => Math.max(price || DEFAULT_PRICE, MIN_PRICE)
 
-const buildSeries = (token: Token): Point[] => {
-  const base = clampPrice(token.price)
-  const targetChange = Number.isFinite(token.price24Change) ? token.price24Change : 4
-  const targetPrice = clampPrice(base * (1 + targetChange / 100))
-  const step = Math.pow(targetPrice / base || 1, 1 / Math.max(SERIES_LENGTH - 1, 1))
+const toFiniteNumber = (value: unknown): number | undefined => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : undefined
+}
 
-  let current = base
+const formatUsdDisplay = (value: number) => {
+  const safe = Number.isFinite(value) ? Math.max(value, 0) : 0
+  if (safe >= 1000) return formatNumber(safe)
+  if (safe >= 1) return safe.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  return safe.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })
+}
+
+const buildFallbackSeries = (token: Token): Point[] => {
+  const base = clampPrice(token.price)
   return Array.from({ length: SERIES_LENGTH }, (_, index) => {
-    if (index > 0) {
-      const noise = 1 + ((Math.random() - 0.5) * NOISE)
-      current = clampPrice(current * step * noise)
-    }
-    return { x: index, y: Number(current.toFixed(8)) }
+    const drift = 1 + index * 0.0002
+    return { x: index, y: Number((base * drift).toFixed(8)) }
   })
+}
+
+const toPriceFromScaled = (priceScaled?: string) => {
+  if (!priceScaled) return undefined
+  const value = Number(priceScaled)
+  if (!Number.isFinite(value)) return undefined
+  return clampPrice(value / 1_000_000_000)
+}
+
+const toBigInt = (value: string | null | undefined) => {
+  if (!value) return 0n
+  try {
+    return BigInt(value)
+  } catch {
+    return 0n
+  }
+}
+
+const createSummaryFromPayload = (
+  payload: Record<string, unknown>,
+  priceScaledKey: 'priceScaled' | 'currentPriceScaled',
+  priceKey: 'price' | 'currentPrice',
+): ChartSummary | null => {
+  const priceScaled = typeof payload[priceScaledKey] === 'string' ? String(payload[priceScaledKey]) : null
+  const price =
+    toPriceFromScaled(priceScaled ?? undefined) ??
+    (Number.isFinite(Number(payload[priceKey])) ? clampPrice(Number(payload[priceKey])) : null)
+
+  if (!priceScaled && price === null) return null
+  return {
+    firstPriceScaled: priceScaled,
+    lastPriceScaled: priceScaled,
+    firstPrice: price,
+    lastPrice: price,
+    priceChangePct: 0,
+    highPriceScaled: priceScaled,
+    lowPriceScaled: priceScaled,
+    highPrice: price,
+    lowPrice: price,
+    volumeBase: '0',
+    volumeToken: '0',
+    tradeCount: 0,
+  }
+}
+
+const applyPriceToSummary = (
+  summary: ChartSummary | null,
+  payload: Record<string, unknown>,
+  priceScaledKey: 'priceScaled' | 'currentPriceScaled',
+  priceKey: 'price' | 'currentPrice',
+) => {
+  const base = summary ?? createSummaryFromPayload(payload, priceScaledKey, priceKey)
+  if (!base) return summary
+
+  const priceScaled = typeof payload[priceScaledKey] === 'string' ? String(payload[priceScaledKey]) : null
+  const nextPrice =
+    toPriceFromScaled(priceScaled ?? undefined) ??
+    (Number.isFinite(Number(payload[priceKey])) ? clampPrice(Number(payload[priceKey])) : null)
+
+  const firstPrice = base.firstPrice ?? nextPrice
+  const lastPrice = nextPrice ?? base.lastPrice
+  const priceChangePct =
+    firstPrice && lastPrice && firstPrice > 0 ? Number((((lastPrice - firstPrice) / firstPrice) * 100).toFixed(4)) : 0
+
+  const prevHigh = toBigInt(base.highPriceScaled)
+  const prevLow = toBigInt(base.lowPriceScaled || base.highPriceScaled)
+  const nextScaled = toBigInt(priceScaled)
+
+  const highScaled =
+    priceScaled && (!base.highPriceScaled || nextScaled > prevHigh) ? priceScaled : base.highPriceScaled
+  const lowScaled = priceScaled && (!base.lowPriceScaled || nextScaled < prevLow) ? priceScaled : base.lowPriceScaled
+
+  return {
+    ...base,
+    lastPriceScaled: priceScaled ?? base.lastPriceScaled,
+    lastPrice,
+    firstPrice,
+    priceChangePct,
+    highPriceScaled: highScaled,
+    lowPriceScaled: lowScaled,
+    highPrice: toPriceFromScaled(highScaled ?? undefined) ?? base.highPrice,
+    lowPrice: toPriceFromScaled(lowScaled ?? undefined) ?? base.lowPrice,
+  }
+}
+
+const applyTradeToSummary = (summary: ChartSummary | null, payload: Record<string, unknown>) => {
+  const next = applyPriceToSummary(summary, payload, 'priceScaled', 'price')
+  if (!next) return next
+
+  return {
+    ...next,
+    volumeBase: (toBigInt(next.volumeBase) + toBigInt(payload.amountBase as string | undefined)).toString(),
+    volumeToken: (toBigInt(next.volumeToken) + toBigInt(payload.amountToken as string | undefined)).toString(),
+    tradeCount: next.tradeCount + 1,
+  }
+}
+
+const normalizeSeries = (prices: number[]): Point[] =>
+  prices.slice(-SERIES_LENGTH).map((price, idx) => ({ x: idx, y: Number(clampPrice(price).toFixed(8)) }))
+
+const appendPoint = (prev: Point[], price: number): Point[] => {
+  const updated = [...prev, { x: prev.length, y: Number(clampPrice(price).toFixed(8)) }].slice(-SERIES_LENGTH)
+  return updated.map((p, idx) => ({ x: idx, y: p.y }))
+}
+
+const pointsFromHistory = (history: ChartHistoryResponse): Point[] => {
+  const fuelUsd = toFiniteNumber(history.fuelUsd)
+  const seriesPrices = history.series
+    .map((point) => {
+      const priceUsd = toFiniteNumber(point.price_usd)
+      if (priceUsd !== undefined && priceUsd > 0) return priceUsd
+      if (fuelUsd !== undefined && Number.isFinite(point.price) && point.price > 0) return point.price * fuelUsd
+      return point.price
+    })
+    .filter((value) => Number.isFinite(value) && value > 0)
+  if (seriesPrices.length > 1) {
+    return normalizeSeries(seriesPrices)
+  }
+
+  const candlePrices = history.candles
+    .filter((candle) => candle.n > 0)
+    .map((candle) => {
+      const fuelPrice = toPriceFromScaled(candle.c)
+      if (fuelPrice === undefined) return undefined
+      return fuelUsd !== undefined ? fuelPrice * fuelUsd : fuelPrice
+    })
+    .filter((price): price is number => price !== undefined && Number.isFinite(price) && price > 0)
+  return normalizeSeries(candlePrices)
 }
 
 const resolveBaseMarketCap = (token: Token, price: number) => {
@@ -74,18 +204,20 @@ const resolveBaseMarketCap = (token: Token, price: number) => {
 export const Chart = ({ token }: ChartProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [points, setPoints] = useState<Point[]>(() => buildSeries(token))
+  const [points, setPoints] = useState<Point[]>(() => buildFallbackSeries(token))
   const [lineProgress, setLineProgress] = useState(0)
   const basePrice = useMemo(() => clampPrice(token.price), [token.price])
   const baseCap = useMemo(() => resolveBaseMarketCap(token, basePrice), [token, basePrice])
   const [marketCapValue, setMarketCapValue] = useState(() => baseCap)
-  const [displayProgress, setDisplayProgress] = useState(80)
+  const [historySummary, setHistorySummary] = useState<ChartSummary | null>(null)
+  const [liveProgress, setLiveProgress] = useState(() => clampProgress(token.progress))
+  const [liveMarketCapUsd, setLiveMarketCapUsd] = useState<number | null>(null)
+  const [liveVolumeUsd, setLiveVolumeUsd] = useState<number | null>(null)
+  const [fuelUsdQuote, setFuelUsdQuote] = useState<number | null>(null)
 
   const pointsRef = useRef(points)
   const lineProgressRef = useRef(lineProgress)
   const marketCapRef = useRef(marketCapValue)
-  const progressAnimId = useRef<number | null>(null)
-  const displayProgressRef = useRef(displayProgress)
 
   const latestPrice = useMemo(() => {
     if (!points.length) return basePrice
@@ -93,43 +225,122 @@ export const Chart = ({ token }: ChartProps) => {
   }, [points, basePrice])
 
   const priceChange = useMemo(() => {
+    if (historySummary && Number.isFinite(historySummary.priceChangePct)) {
+      return Number(historySummary.priceChangePct.toFixed(2))
+    }
     if (points.length < 2) return 0
     const first = points[0].y
     const last = points[points.length - 1].y
     return Number((((last - first) / first) * 100).toFixed(2))
-  }, [points])
+  }, [historySummary, points])
 
-  const progress = useMemo(() => clampProgress(token.progress), [token.progress])
+  const displayProgress = useMemo(() => clampProgress(liveProgress), [liveProgress])
 
   const targetMarketCap = useMemo(() => {
-    if (!basePrice) return 0
-    const ratio = latestPrice / basePrice
-    return Math.max(baseCap * ratio, 0)
-  }, [baseCap, basePrice, latestPrice])
+    if (liveMarketCapUsd !== null && Number.isFinite(liveMarketCapUsd) && liveMarketCapUsd >= 0) {
+      return liveMarketCapUsd
+    }
+    if (fuelUsdQuote !== null && Number.isFinite(fuelUsdQuote) && fuelUsdQuote > 0) {
+      return Math.max(baseCap * fuelUsdQuote, 0)
+    }
+    return Math.max(baseCap, 0)
+  }, [liveMarketCapUsd, baseCap, fuelUsdQuote])
 
-  const marketCapDisplay = useMemo(() => formatNumber(Math.max(marketCapValue, 0)), [marketCapValue])
-
-  const targetProgress = useMemo(() => {
-    const progressFromCap = baseCap ? (marketCapValue / baseCap) * 100 : 0
-    const tokenProgress = clampProgress(token.progress)
-    return clampProgress(Math.max(progressFromCap, tokenProgress))
-  }, [marketCapValue, baseCap, token.progress])
+  const marketCapDisplay = useMemo(() => formatUsdDisplay(marketCapValue), [marketCapValue])
 
   const volumeDisplay = useMemo(() => {
+    if (liveVolumeUsd !== null && Number.isFinite(liveVolumeUsd) && liveVolumeUsd >= 0) {
+      return formatUsdDisplay(liveVolumeUsd)
+    }
+    if (historySummary) {
+      const historyVolumeUsd = Number(historySummary.volumeUsd)
+      if (Number.isFinite(historyVolumeUsd) && historyVolumeUsd >= 0) {
+        return formatUsdDisplay(historyVolumeUsd)
+      }
+      const historyVolume = Number(historySummary.volumeBase)
+      if (Number.isFinite(historyVolume) && historyVolume >= 0) {
+        if (fuelUsdQuote !== null && Number.isFinite(fuelUsdQuote) && fuelUsdQuote > 0) {
+          return formatUsdDisplay(historyVolume * fuelUsdQuote)
+        }
+        return formatUsdDisplay(historyVolume)
+      }
+    }
     const baseVolume = Number.isFinite(token.volume24h) ? token.volume24h : baseCap * 0.35
-    const ratio = basePrice ? latestPrice / basePrice : 1
-    return formatNumber(Math.max(baseVolume * ratio, 0))
-  }, [token.volume24h, baseCap, basePrice, latestPrice])
+    if (fuelUsdQuote !== null && Number.isFinite(fuelUsdQuote) && fuelUsdQuote > 0) {
+      return formatUsdDisplay(baseVolume * fuelUsdQuote)
+    }
+    return formatUsdDisplay(baseVolume)
+  }, [liveVolumeUsd, historySummary, token.volume24h, baseCap, fuelUsdQuote])
 
   useEffect(() => {
-    const series = buildSeries(token)
-    setPoints(series)
-    pointsRef.current = series
+    let cancelled = false
+    const toTs = Math.floor(Date.now() / 1000)
+    const fromTs = toTs - HISTORY_WINDOW_SEC
+
+    const loadHistory = async () => {
+      try {
+        const snapshotResponse = await sseApi.getCampaignSnapshot(String(token.id))
+        if (!cancelled) {
+          const snapshot = snapshotResponse.snapshot
+          const quoteUsd = toFiniteNumber(snapshot.fuelUsd)
+          if (quoteUsd !== undefined && quoteUsd > 0) {
+            setFuelUsdQuote(quoteUsd)
+          }
+          const marketCapUsd = toFiniteNumber(snapshot.marketCapUsd)
+          if (marketCapUsd !== undefined) {
+            setLiveMarketCapUsd(Math.max(marketCapUsd, 0))
+          }
+          const totalVolumeUsd = toFiniteNumber(snapshot.totalVolumeUsd)
+          if (totalVolumeUsd !== undefined) {
+            setLiveVolumeUsd(Math.max(totalVolumeUsd, 0))
+          }
+          if (Number.isFinite(Number(snapshot.progress))) {
+            setLiveProgress(clampProgress(Number(snapshot.progress)))
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load campaign snapshot:', error)
+      }
+
+      try {
+        const history = await sseApi.getChartHistory(String(token.id), {
+          fromTs,
+          toTs,
+          intervalSec: HISTORY_INTERVAL_SEC,
+        })
+        if (cancelled) return
+        const historyPoints = pointsFromHistory(history)
+        const nextSeries = historyPoints.length > 0 ? historyPoints : buildFallbackSeries(token)
+        setPoints(nextSeries)
+        pointsRef.current = nextSeries
+        setHistorySummary(history.summary ?? null)
+        const historyQuote = toFiniteNumber(history.fuelUsd)
+        if (historyQuote !== undefined && historyQuote > 0) {
+          setFuelUsdQuote(historyQuote)
+        }
+      } catch (error) {
+        console.error('Failed to load chart history:', error)
+        if (cancelled) return
+        const fallback = buildFallbackSeries(token)
+        setPoints(fallback)
+        pointsRef.current = fallback
+        setHistorySummary(null)
+      }
+    }
+
+    loadHistory()
     setLineProgress(0)
     lineProgressRef.current = 0
     setMarketCapValue(baseCap)
     marketCapRef.current = baseCap
-    setDisplayProgress(clampProgress(token.progress))
+    setLiveProgress(clampProgress(token.progress))
+    setLiveMarketCapUsd(null)
+    setLiveVolumeUsd(null)
+    setFuelUsdQuote(null)
+    setHistorySummary(null)
+    return () => {
+      cancelled = true
+    }
   }, [token.id, baseCap, token.progress])
 
   useEffect(() => {
@@ -157,7 +368,7 @@ export const Chart = ({ token }: ChartProps) => {
       const elapsed = timestamp - start
       const t = Math.min(elapsed / MARKET_CAP_ANIMATION_MS, 1)
       const eased = 1 - Math.pow(1 - t, 3)
-      const next = Math.floor(from + (targetMarketCap - from) * eased)
+      const next = from + (targetMarketCap - from) * eased
       setMarketCapValue(next)
       marketCapRef.current = next
       if (t < 1) animationId = requestAnimationFrame(animate)
@@ -168,58 +379,89 @@ export const Chart = ({ token }: ChartProps) => {
   }, [targetMarketCap])
 
   useEffect(() => {
-    displayProgressRef.current = displayProgress
-  }, [displayProgress])
+    const baseUrl = (import.meta.env.VITE_SSE_URL || DEFAULT_SSE_URL).replace(/\/+$/, '')
+    const source = new EventSource(`${baseUrl}/sse?campaignId=${encodeURIComponent(String(token.id))}`)
 
-  useEffect(() => {
-    if (progressAnimId.current) {
-      cancelAnimationFrame(progressAnimId.current)
-    }
-
-    const from = displayProgressRef.current
-    const to = targetProgress
-    const start = performance.now()
-
-    const animate = (timestamp: number) => {
-      const elapsed = timestamp - start
-      const t = Math.min(elapsed / PROGRESS_ANIMATION_MS, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
-      const next = from + (to - from) * eased
-      setDisplayProgress(next)
-      displayProgressRef.current = next
-      if (t < 1) {
-        progressAnimId.current = requestAnimationFrame(animate)
+    const handleTrade = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data)
+        const quoteUsd = toFiniteNumber(payload.fuelUsd)
+        if (quoteUsd !== undefined && quoteUsd > 0) {
+          setFuelUsdQuote(quoteUsd)
+        }
+        const priceUsd = toFiniteNumber(payload.priceUsd)
+        const price =
+          (priceUsd !== undefined ? clampPrice(priceUsd) : undefined) ??
+          toPriceFromScaled(payload.priceScaled) ??
+          (Number.isFinite(Number(payload.price)) ? clampPrice(Number(payload.price)) : undefined)
+        if (price === undefined) return
+        setPoints((prev) => appendPoint(prev.length ? prev : buildFallbackSeries(token), price))
+        setHistorySummary((prev) => applyTradeToSummary(prev, payload))
+      } catch (error) {
+        console.error('Failed to parse trade_created event:', error)
       }
     }
 
-    progressAnimId.current = requestAnimationFrame(animate)
+    const handleCampaign = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data)
+        const quoteUsd = toFiniteNumber(payload.fuelUsd)
+        if (quoteUsd !== undefined && quoteUsd > 0) {
+          setFuelUsdQuote(quoteUsd)
+        }
+        const priceUsd = toFiniteNumber(payload.currentPriceUsd)
+        const price = (priceUsd !== undefined ? clampPrice(priceUsd) : undefined) ?? toPriceFromScaled(payload.currentPriceScaled)
+        if (price !== undefined) {
+          setPoints((prev) => appendPoint(prev.length ? prev : buildFallbackSeries(token), price))
+        }
+        setHistorySummary((prev) => {
+          const next = applyPriceToSummary(prev, payload, 'currentPriceScaled', 'currentPrice')
+          if (!next) return next
+          const totalVolumeBase =
+            typeof payload.totalVolumeBase === 'string' ? payload.totalVolumeBase : next.volumeBase
+          const totalVolumeUsd = toFiniteNumber(payload.totalVolumeUsd)
+          return {
+            ...next,
+            volumeBase: totalVolumeBase,
+            volumeUsd: totalVolumeUsd ?? next.volumeUsd,
+          }
+        })
+        if (Number.isFinite(Number(payload.progress))) {
+          setLiveProgress(clampProgress(Number(payload.progress)))
+        } else if (payload.curveSoldSupply && payload.curveMaxSupply) {
+          const sold = toBigInt(payload.curveSoldSupply as string)
+          const max = toBigInt(payload.curveMaxSupply as string)
+          if (max > 0n) {
+            setLiveProgress(clampProgress(Number((sold * 10000n) / max) / 100))
+          }
+        }
+        const marketCapUsd = toFiniteNumber(payload.marketCapUsd)
+        if (marketCapUsd !== undefined) {
+          setLiveMarketCapUsd(Math.max(marketCapUsd, 0))
+        } else if (Number.isFinite(Number(payload.marketCapBase))) {
+          setLiveMarketCapUsd(Math.max(Number(payload.marketCapBase), 0))
+        }
+        const totalVolumeUsd = toFiniteNumber(payload.totalVolumeUsd)
+        if (totalVolumeUsd !== undefined) {
+          setLiveVolumeUsd(Math.max(totalVolumeUsd, 0))
+        }
+      } catch (error) {
+        console.error('Failed to parse campaign_updated event:', error)
+      }
+    }
+
+    source.addEventListener('trade_created', handleTrade as EventListener)
+    source.addEventListener('campaign_updated', handleCampaign as EventListener)
+    source.onerror = () => {
+      // EventSource auto-reconnects; keep quiet to avoid noisy logs.
+    }
+
     return () => {
-      if (progressAnimId.current) {
-        cancelAnimationFrame(progressAnimId.current)
-      }
+      source.removeEventListener('trade_created', handleTrade as EventListener)
+      source.removeEventListener('campaign_updated', handleCampaign as EventListener)
+      source.close()
     }
-  }, [targetProgress])
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setPoints(prev => {
-        if (!prev.length) return prev
-        const last = prev[prev.length - 1]
-        const dir = Math.random() < 0.42 ? -1 : 1
-        const drift = 1 + dir * 0.0038 // ±0.38%
-        const noise = 1 + ((Math.random() - 0.5) * 0.004)
-        const jump = Math.random() < JUMP_PROBABILITY
-          ? JUMP_MIN + Math.random() * (JUMP_MAX - JUMP_MIN)
-          : 1
-        const nextY = clampPrice(last.y * drift * noise * jump)
-        const nextPoint = { x: last.x + 1, y: Number(nextY.toFixed(8)) }
-        const updated = [...prev, nextPoint].slice(-SERIES_LENGTH)
-        return updated.map((p, idx) => ({ x: idx, y: p.y }))
-      })
-    }, TICK_MS)
-
-    return () => window.clearInterval(interval)
-  }, [token.id])
+  }, [token.id, token.price])
 
   useEffect(() => {
     pointsRef.current = points
