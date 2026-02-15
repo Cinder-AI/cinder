@@ -64,25 +64,44 @@ storage {
     owner: State = State::Uninitialized,
 }
 
-fn pledge_asset_id() -> AssetId {
-    if PLEDGE_ASSET_ID == b256::zero() {
-        AssetId::base()
-    } else {
-        AssetId::from(PLEDGE_ASSET_ID)
+
+// ------ HELPER FUNCTIONS ------
+
+#[storage(read)]
+fn get_creator_campaigns(creator: Identity) -> Vec<Campaign> {
+    let mut campaigns: Vec<Campaign> = Vec::new();
+    let mut i = 0;
+    while i < storage.assets.len() {
+        let asset_id = storage.assets.get(i).unwrap().read();
+        let campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+        if campaign.creator == creator {
+            campaigns.push(campaign);
+        }
+        i += 1;
     }
+    campaigns
+}
+
+fn get_active_campaigns(creator_campaigns: Vec<Campaign>) -> Vec<Campaign> {
+    let mut campaigns: Vec<Campaign> = Vec::new();
+    let mut i = 0;
+    while i < creator_campaigns.len() {
+        let campaign = creator_campaigns.get(i).unwrap();
+        if campaign.status == CampaignStatus::Active {
+            campaigns.push(campaign);
+        }
+        i += 1;
+    }
+    campaigns
 }
 
 #[storage(read)]
-fn require_owner() {
-    match storage.owner.read() {
-        State::Initialized(owner) => {
-            require(owner == msg_sender().unwrap(), "Not owner");
-        },
-        _ => {
-            require(false, "Owner not initialized");
-        }
-    }
+fn can_create_campaign(creator: Identity) -> bool {
+    let creator_campaigns = get_creator_campaigns(creator);
+    let active_campaigns = get_active_campaigns(creator_campaigns);
+    active_campaigns.len() < 1
 }
+
 
 fn is_instant_launch_ready(total_pledged: u64) -> bool {
     total_pledged >= (MIGRATION_TARGET / 100) * INSTANT_LAUNCH_THRESHOLD_PERCENT
@@ -140,6 +159,8 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
     }
 }
 
+// ------ SRC IMPLEMENTATIONS ------
+
 impl SRC5 for  Contract {
     #[storage(read)]
     fn owner() -> State {
@@ -190,6 +211,44 @@ impl SRC7 for Contract {
     }
 }
 
+impl SRC3 for Contract {
+    #[storage(read, write)]
+    fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
+        require(sub_id.is_some(), "Sub ID is required");
+        let sub_id = sub_id.unwrap();
+        let asset_id = AssetId::new(ContractId::this(), sub_id);
+        let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
+        let new_supply = current_supply + amount;
+        storage.total_supply.insert(asset_id, new_supply);
+        mint_to(recipient, sub_id, amount);
+        TotalSupplyEvent::new(asset_id, new_supply, recipient).log();
+        log(MintEvent {
+            asset_id,
+            recipient,
+            amount,
+        }); 
+    }
+
+    #[storage(read, write), payable]
+    fn burn(sub_id: SubId, amount: u64) {
+        let asset_id = AssetId::new(ContractId::this(), sub_id);
+        let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
+        let new_supply = current_supply - amount;
+        storage.total_supply.insert(asset_id, new_supply);
+        burn(sub_id, amount);
+        let sender = msg_sender().unwrap();
+        TotalSupplyEvent::new(asset_id, new_supply, sender).log();
+        log(BurnEvent {
+            asset_id,
+            sender,
+            amount,
+        });
+    }
+}
+
+
+// ------ LAUNCHPAD -------
+
 impl Launchpad for Contract {
 
     #[storage(read, write)]
@@ -200,7 +259,7 @@ impl Launchpad for Contract {
 
     #[storage(read, write)]
     fn set_owner(owner: Identity) {
-        require_owner();
+        require_owner(storage.owner.read());
         storage.owner.write(State::Initialized(owner));
     }
 
@@ -244,9 +303,10 @@ impl Launchpad for Contract {
         description: String,
         image: String,
     ) -> AssetId {
+        let sender = msg_sender().unwrap();
+        require(can_create_campaign(sender), "Already has active campaign");
 
         let counter = storage.campaign_counter.read();
-        let sender = msg_sender().unwrap();
         let sub_id = sha256((counter, sender));
         let asset_id = AssetId::new(ContractId::this(), sub_id);
 
@@ -290,7 +350,7 @@ impl Launchpad for Contract {
     fn deny_campaign(
         asset_id: AssetId,
     ) -> bool {
-        require_owner();
+        require_owner(storage.owner.read());
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         
         require(campaign.status == CampaignStatus::Active, "Campaign is not active");
@@ -309,7 +369,7 @@ impl Launchpad for Contract {
     /// Launches a campaign: initializes curve, mints full supply to contract.
     /// Owner-only; campaign must be active and have pledges.
     fn launch_campaign(asset_id: AssetId) -> bool {
-        require_owner();
+        require_owner(storage.owner.read());
         let sender = msg_sender().unwrap();
         let campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         do_launch(asset_id, campaign, sender)
@@ -356,15 +416,14 @@ impl Launchpad for Contract {
     }
 
     #[storage(read, write)]
-
     /// Migrates a token to Reactor DEX
     fn migrate(asset_id: AssetId) -> bool {
-        require_owner();
+        require_owner(storage.owner.read());
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
         require(campaign.status == CampaignStatus::Launched, "Not launched");
         let sender = msg_sender().unwrap();
         transfer(sender, asset_id, campaign.amm_reserved);
-        transfer(sender, pledge_asset_id(), campaign.curve_reserve);
+        transfer(sender, PLEDGE_ASSET_ID, campaign.curve_reserve);
 
         log(CampaignMigratedEvent {
             asset_id,
@@ -394,7 +453,7 @@ impl Launchpad for Contract {
             let mut pledge = pledges_vec.get(i).unwrap().read();
             if pledge.sender == sender {
                 require(!pledge.claimed, "Already claimed");
-                transfer(sender, pledge_asset_id(), pledge.amount);
+                transfer(sender, PLEDGE_ASSET_ID, pledge.amount);
                 pledge.claimed = true;
                 pledges_vec.set(i, pledge);
                 return true;
@@ -415,7 +474,7 @@ impl Launchpad for Contract {
         require(campaign.status == CampaignStatus::Launched, "Not launched");
 
         let sent_asset = msg_asset_id();
-        let pledge_asset = pledge_asset_id();
+        let pledge_asset = PLEDGE_ASSET_ID;
         require(sent_asset == pledge_asset, "Sent asset is not the pledge asset");
 
         let budget = msg_amount();
@@ -429,7 +488,7 @@ impl Launchpad for Contract {
         storage.campaigns.insert(asset_id, campaign);
 
         if budget > cost {
-            transfer(sender, pledge_asset_id(), budget - cost);
+            transfer(sender, PLEDGE_ASSET_ID, budget - cost);
         }
         transfer(sender, asset_id, best);
         log(BuyEvent {
@@ -467,7 +526,7 @@ impl Launchpad for Contract {
         campaign.curve_reserve -= payout;
         storage.campaigns.insert(asset_id, campaign);
 
-        transfer(sender, pledge_asset_id(), payout);
+        transfer(sender, PLEDGE_ASSET_ID, payout);
         log(SellEvent {
             asset_id,
             sender,
@@ -495,7 +554,7 @@ impl Launchpad for Contract {
         require(amount > 0, "Amount must be greater than 0");
 
         let sent_asset = msg_asset_id();
-        let pledge_asset = pledge_asset_id();
+        let pledge_asset = PLEDGE_ASSET_ID;
         require(sent_asset == pledge_asset, "Sent asset is not the pledge asset");
 
         let sent_amount = msg_amount();
@@ -618,40 +677,5 @@ impl Launchpad for Contract {
         asset_id: AssetId
     ) -> TokenInfo {
         read_token_info(asset_id)
-    }
-}
-
-impl SRC3 for Contract {
-    #[storage(read, write)]
-    fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
-        require(sub_id.is_some(), "Sub ID is required");
-        let sub_id = sub_id.unwrap();
-        let asset_id = AssetId::new(ContractId::this(), sub_id);
-        let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
-        let new_supply = current_supply + amount;
-        storage.total_supply.insert(asset_id, new_supply);
-        mint_to(recipient, sub_id, amount);
-        TotalSupplyEvent::new(asset_id, new_supply, recipient).log();
-        log(MintEvent {
-            asset_id,
-            recipient,
-            amount,
-        }); 
-    }
-
-    #[storage(read, write), payable]
-    fn burn(sub_id: SubId, amount: u64) {
-        let asset_id = AssetId::new(ContractId::this(), sub_id);
-        let current_supply = storage.total_supply.get(asset_id).try_read().unwrap_or(0);
-        let new_supply = current_supply - amount;
-        storage.total_supply.insert(asset_id, new_supply);
-        burn(sub_id, amount);
-        let sender = msg_sender().unwrap();
-        TotalSupplyEvent::new(asset_id, new_supply, sender).log();
-        log(BurnEvent {
-            asset_id,
-            sender,
-            amount,
-        });
     }
 }
