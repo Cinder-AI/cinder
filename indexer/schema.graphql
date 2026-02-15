@@ -27,6 +27,7 @@ type Campaign {
   curve_max_supply: BigInt!
   current_price_scaled: BigInt!
   current_price: BigInt!
+  curve_reserve: BigInt!
 }
 
 type Trade {
@@ -38,6 +39,7 @@ type Trade {
   amount_base: BigInt!
   price_scaled: BigInt
   price: BigInt
+  curve_reserve: BigInt!
   timestamp: BigInt!
   tx_id: String!
   block_height: BigInt!
@@ -182,6 +184,17 @@ type Launchpad_CampaignDeniedEvent {
   id: ID!
 }
 
+type Launchpad_CampaignMigratedEvent {
+  id: ID!
+  campaign_id: String!
+  sender_id: String!
+  base_reserve: BigInt!
+  token_reserve: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
 type Launchpad_SetDecimalsEvent {
   id: ID!
 }
@@ -208,4 +221,48 @@ type Launchpad_Burn {
 
 type Launchpad_Call {
   id: ID!
+}
+
+type ReactorPool_CreatePoolEvent {
+  id: ID!
+  pool_id: String!
+  token_0_asset_id: String!
+  token_1_asset_id: String!
+  fee: BigInt!
+  sqrt_price_x96: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
+type ReactorPool_MintEvent {
+  id: ID!
+}
+
+type ReactorPool_SwapEvent {
+  id: ID!
+  pool_id: String!
+  token_0_asset_id: String!
+  token_1_asset_id: String!
+  fee: BigInt!
+  recipient_id: String!
+  asset_0_in: BigInt!
+  asset_1_in: BigInt!
+  asset_0_out: BigInt!
+  asset_1_out: BigInt!
+  sqrt_price_x96: BigInt!
+  tick: BigInt!
+  fee_protocol_0: BigInt!
+  fee_protocol_1: BigInt!
+  unlocked: Boolean!
+  fee_growth_global_0_x128: BigInt!
+  fee_growth_global_1_x128: BigInt!
+  protocol_fees_token_0: BigInt!
+  protocol_fees_token_1: BigInt!
+  liquidity: BigInt!
+  reserve_0: BigInt!
+  reserve_1: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
 }

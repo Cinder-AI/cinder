@@ -10,6 +10,7 @@ import {
   Cinder_TotalSupplyEvent,
   Launchpad,
   Launchpad_CampaignLaunchedEvent,
+  Launchpad_CampaignMigratedEvent,
   Launchpad_BuyEvent,
   Launchpad_TotalSupplyEvent,
   Launchpad_MintEvent,
@@ -18,6 +19,10 @@ import {
   Launchpad_SellEvent,
   Launchpad_ClaimEvent,
   Launchpad_CampaignDeniedEvent,
+  ReactorPool,
+  ReactorPool_CreatePoolEvent,
+  ReactorPool_MintEvent,
+  ReactorPool_SwapEvent,
   Campaign,
   Trade,
   Pledge,
@@ -41,6 +46,18 @@ const identityToId = (identity: { case: "Address" | "ContractId"; payload: { bit
 
 const getCurrentPriceScaled = (basePrice: bigint, slope: bigint, soldSupply: bigint) =>
   basePrice + (slope * soldSupply) / SLOPE_SCALE;
+
+const getPoolSnapshotKey = (poolId: [{ bits: string }, { bits: string }, bigint]) => {
+  const token0AssetId = poolId[0].bits;
+  const token1AssetId = poolId[1].bits;
+  const fee = poolId[2];
+  return {
+    poolKey: `${token0AssetId}_${token1AssetId}_${fee.toString()}`,
+    token0AssetId,
+    token1AssetId,
+    fee,
+  };
+};
 
 Cinder.SetImageEvent.handler(async ({ event, context }) => {
   const entity: Cinder_SetImageEvent = {
@@ -104,6 +121,7 @@ Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
     const slope = event.params.slope;
     const currentPriceScaled = getCurrentPriceScaled(basePrice, slope, soldSupply);
     const currentPrice = currentPriceScaled / PRICE_SCALE;
+    const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
     const updatedCampaign: Campaign = {
       ...campaign,
       status: "Launched",
@@ -113,6 +131,42 @@ Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
       curve_max_supply: event.params.max_supply,
       current_price_scaled: currentPriceScaled,
       current_price: currentPrice,
+      curve_reserve: curveReserve,
+    };
+    context.Campaign.set(updatedCampaign);
+  }
+});
+
+Launchpad.CampaignMigratedEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const campaignId = event.params.asset_id.bits;
+  const senderId = identityToId(event.params.sender);
+  const baseReserve = toHuman(event.params.base_reserve, BASE_ASSET_DECIMALS);
+  const entity: Launchpad_CampaignMigratedEvent = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    campaign_id: campaignId,
+    sender_id: senderId,
+    base_reserve: baseReserve,
+    token_reserve: event.params.token_reserve,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+
+  context.Launchpad_CampaignMigratedEvent.set(entity);
+
+  if (context.isPreload) {
+    return;
+  }
+
+  const campaign = await context.Campaign.get(campaignId);
+  if (campaign) {
+    const updatedCampaign: Campaign = {
+      ...campaign,
+      status: "Migrated",
+      curve_reserve: baseReserve,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -162,6 +216,7 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
       : undefined;
   const currentPrice =
     currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
+  const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
@@ -171,6 +226,7 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
     amount_base: humanCost,
     price_scaled: currentPriceScaled,
     price: currentPrice,
+    curve_reserve: curveReserve,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
@@ -184,6 +240,7 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
       curve_sold_supply: soldSupply,
       current_price_scaled: currentPriceScaled,
       current_price: currentPrice,
+      curve_reserve: curveReserve,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -250,6 +307,7 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
     curve_max_supply: 0n,
     current_price_scaled: 0n,
     current_price: 0n,
+    curve_reserve: 0n,
   });
 });
 
@@ -345,6 +403,7 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
       : undefined;
   const currentPrice =
     currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
+  const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     user_id: userId,
@@ -354,6 +413,7 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
     amount_base: humanPayout,
     price_scaled: currentPriceScaled,
     price: currentPrice,
+    curve_reserve: curveReserve,
     timestamp,
     tx_id: txId,
     block_height: blockHeight,
@@ -367,6 +427,7 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
       curve_sold_supply: soldSupply,
       current_price_scaled: currentPriceScaled,
       current_price: currentPrice,
+      curve_reserve: curveReserve,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -412,4 +473,66 @@ Launchpad.CampaignDeniedEvent.handler(async ({ event, context }) => {
     };
     context.Campaign.set(updatedCampaign);
   }
+});
+
+ReactorPool.CreatePoolEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const { poolKey, token0AssetId, token1AssetId, fee } = getPoolSnapshotKey(event.params.pool_id);
+  const entity: ReactorPool_CreatePoolEvent = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    pool_id: poolKey,
+    token_0_asset_id: token0AssetId,
+    token_1_asset_id: token1AssetId,
+    fee,
+    sqrt_price_x96: event.params.sqrt_price_x96,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+  context.ReactorPool_CreatePoolEvent.set(entity);
+});
+
+ReactorPool.MintEvent.handler(async ({ event, context }) => {
+  const entity: ReactorPool_MintEvent = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+  };
+  context.ReactorPool_MintEvent.set(entity);
+});
+
+ReactorPool.SwapEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const { poolKey, token0AssetId, token1AssetId, fee } = getPoolSnapshotKey(event.params.pool_id);
+  const { pool_state: poolState } = event.params;
+  const entity: ReactorPool_SwapEvent = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    pool_id: poolKey,
+    token_0_asset_id: token0AssetId,
+    token_1_asset_id: token1AssetId,
+    fee,
+    recipient_id: identityToId(event.params.recipient),
+    asset_0_in: event.params.asset_0_in,
+    asset_1_in: event.params.asset_1_in,
+    asset_0_out: event.params.asset_0_out,
+    asset_1_out: event.params.asset_1_out,
+    sqrt_price_x96: poolState.sqrtPriceX96,
+    tick: poolState.tick.underlying,
+    fee_protocol_0: poolState.fee_protocol_0,
+    fee_protocol_1: poolState.fee_protocol_1,
+    unlocked: poolState.unlocked,
+    fee_growth_global_0_x128: poolState.feeGrowthGlobal0X128,
+    fee_growth_global_1_x128: poolState.feeGrowthGlobal1X128,
+    protocol_fees_token_0: poolState.protocolFees.token0,
+    protocol_fees_token_1: poolState.protocolFees.token1,
+    liquidity: poolState.liquidity,
+    reserve_0: poolState.reserve_0,
+    reserve_1: poolState.reserve_1,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+  context.ReactorPool_SwapEvent.set(entity);
 });

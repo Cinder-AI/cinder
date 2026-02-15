@@ -13,6 +13,8 @@ networks:
         events:
           - name: CampaignLaunchedEvent
             logId: '14024137344589623889'
+          - name: CampaignMigratedEvent
+            logId: '10134986988804840532'
           - name: BuyEvent
             logId: '16560770387918921138'
           - name: TotalSupplyEvent
@@ -45,4 +47,16 @@ networks:
             logId: '1320396085097728272'
           - name: TotalSupplyEvent
             logId: '8807078256608655330'
+      - name: ReactorPool
+        address:
+          - 0xa5843e9c21e5039d527b25b45c8f3c28ca33258ae52e6350764024ef24831966
+        abi_file_path: abis/reactor-pool-abi.json
+        handler: src/EventHandlers.ts
+        events:
+          - name: CreatePoolEvent
+            logId: "12224862438738316526"
+          - name: MintEvent
+            logId: "12547144180067087194"
+          - name: SwapEvent
+            logId: "7938487056892321597"
 preload_handlers: true
