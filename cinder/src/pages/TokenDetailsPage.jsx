@@ -6,10 +6,12 @@ import { AmountSelector } from '../components/AmountSelector.jsx'
 import { BondingCurve } from '../components/BondingCurve.jsx'
 import { TokenDetails } from '../components/TokenDetails.tsx'
 import { Chart } from '../components/Chart.tsx'
-import { toBaseUnits } from '../utils/index.js'
+import { toBaseUnits } from '../utils/index.ts'
 import { useStore } from '../store/StoreProvider.jsx'
 import { useWallet } from '@fuels/react'
 import { useContracts } from '../hooks/useContracts.tsx'
+import { reactorConfig } from '../config/reactor.ts'
+import { swapExactInWithQuote } from '../modules/reactorDex.ts'
 
 export function TokenDetailsPage() {
   const [amount, setAmount] = useState(0)
@@ -19,6 +21,7 @@ export function TokenDetailsPage() {
   const { wallet } = useWallet()
   const { launchpad: launchpadContract, assets } = useContracts()
   const pledgeAssetId = assets?.fuelAssetId
+  const isMigrated = String(token?.status || '').toLowerCase() === 'migrated'
 
   if (!token) {
     return <div>Token not found</div>
@@ -84,6 +87,88 @@ export function TokenDetailsPage() {
     }
   }
 
+  const buyFromPool = async () => {
+    if (!wallet?.provider) {
+      console.error('Wallet is not ready');
+      return false;
+    }
+    if (!amount || amount <= 0) {
+      console.error('Invalid amount:', amount);
+      return false;
+    }
+    if (!pledgeAssetId) {
+      console.error('Pledge asset id is not ready');
+      return false;
+    }
+
+    const tokenAssetId = token.assetId || token.id;
+    if (!tokenAssetId) {
+      console.error('Token asset id is missing:', token);
+      return false;
+    }
+
+    const amountIn = toBaseUnits(String(amount * 100), 9);
+    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier];
+
+    try {
+      await swapExactInWithQuote({
+        wallet,
+        reactorPoolContractId: reactorConfig.reactorPoolContractId,
+        poolId,
+        tokenInId: pledgeAssetId,
+        tokenOutId: tokenAssetId,
+        amountIn,
+        slippageBps: reactorConfig.defaultSlippageBps,
+        deadlineBlocks: reactorConfig.deadlineBlocks,
+      });
+      return true;
+    } catch (error) {
+      console.error('Pool buy (swap) failed:', error);
+      return false;
+    }
+  }
+
+  const sellToPool = async () => {
+    if (!wallet?.provider) {
+      console.error('Wallet is not ready');
+      return false;
+    }
+    if (!amount || amount <= 0) {
+      console.error('Invalid amount:', amount);
+      return false;
+    }
+    if (!pledgeAssetId) {
+      console.error('Pledge asset id is not ready');
+      return false;
+    }
+
+    const tokenAssetId = token.assetId || token.id;
+    if (!tokenAssetId) {
+      console.error('Token asset id is missing:', token);
+      return false;
+    }
+
+    const amountIn = toBaseUnits(String(amount * 100), 9);
+    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier];
+
+    try {
+      await swapExactInWithQuote({
+        wallet,
+        reactorPoolContractId: reactorConfig.reactorPoolContractId,
+        poolId,
+        tokenInId: tokenAssetId,
+        tokenOutId: pledgeAssetId,
+        amountIn,
+        slippageBps: reactorConfig.defaultSlippageBps,
+        deadlineBlocks: reactorConfig.deadlineBlocks,
+      });
+      return true;
+    } catch (error) {
+      console.error('Pool sell (swap) failed:', error);
+      return false;
+    }
+  }
+
   return (
     <div className="token-details-page">
       <TokenDetails token={token} />
@@ -95,8 +180,8 @@ export function TokenDetailsPage() {
       </div>
 
       <div className="token-details-action-buttons">
-        <Button type="sell" label="Sell" onClick={sell} />
-        <Button type="buy" label="Buy" onClick={buy} />
+        <Button type="sell" label="Sell" onClick={isMigrated ? sellToPool : sell} />
+        <Button type="buy" label="Buy" onClick={isMigrated ? buyFromPool : buy} />
       </div>
     </div>
   )

@@ -1,0 +1,30 @@
+{
+  "node_url": "https://testnet.fuel.network/v1/graphql",
+  "generated_at": "2026-02-09T04:52:37Z",
+  "contracts": {
+    "amm": {
+      "contract_id": "0x2d3d312fb9a7ee7f29f2783c5c34dae25ebbdd30382651c2f313dcb5cbe0b108",
+      "transaction_id": "0xb991dfe70ff89188767ede5724a636faa1324de0e3e251a7f0c6d32b75d3cf40",
+      "deployment_file": "/home/pdpvs/projects/cinder/cinder_proto/contracts/amm/out/deployments/amm-deployment-0x2d3d312fb9a7ee7f29f2783c5c34dae25ebbdd30382651c2f313dcb5cbe0b108.json",
+      "chain_id": 0,
+      "network_endpoint": "http://127.0.0.1:4000/v1/graphql",
+      "salt": "0x6980a3bed3936506e7fe368212ceb1a5831e42af1c4bdfbefc4cad24dffd4207"
+    },
+    "cinder": {
+      "contract_id": "0xc4e1a292c9295e51af1cff495c5b74260b58bf101d718d367cae8f1df439bb29",
+      "transaction_id": "0x3d09a7cdeb0a984eed72cb1bd1dd88d0bbbd7e1a783e30174d6cecc5cebb2a6a",
+      "deployment_file": "/home/pdpvs/projects/cinder/cinder_proto/contracts/cinder/out/deployments/cinder-deployment-0xc4e1a292c9295e51af1cff495c5b74260b58bf101d718d367cae8f1df439bb29.json",
+      "chain_id": 0,
+      "network_endpoint": "http://127.0.0.1:4000/v1/graphql",
+      "salt": "0x4e374e7954a731f76edde6f39ad8c9eb43fc61098d0ea728133d4dc8fe2c61eb"
+    },
+    "launchpad": {
+      "contract_id": "0xd32a293cd23fddb06addf94ea6bf975318ce5597bc1e457a069dba9dbcc7e394",
+      "transaction_id": "0xf8acafbb2eccaee49ed2be387bcba452d0ba359c57cac7ccf76637595bc432c9",
+      "deployment_file": "/home/pdpvs/projects/cinder/cinder_proto/contracts/launchpad/out/deployments/launchpad-deployment-0xd32a293cd23fddb06addf94ea6bf975318ce5597bc1e457a069dba9dbcc7e394.json",
+      "chain_id": 0,
+      "network_endpoint": "https://testnet.fuel.network/v1/graphql",
+      "salt": "0x7a2fe090525ac807a6ea5b6ae9501f610bea130175eb9c2ab13776456ef22b79"
+    }
+  }
+}

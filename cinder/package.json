@@ -22,6 +22,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.28.0",
+    "reactor-sdk-ts": "^0.1.2",
     "valtio": "^2.0.0",
     "viem": "^2.20.1"
   },

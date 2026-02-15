@@ -1,23 +1,21 @@
 contracts/target
 **/out
 **/target
-react-app/public/fuel-contracts.local.json
-react-app/.env.contracts.local
-react-app/.env.contracts.*.local
-react-app/src/sway-api/contracts/*Factory.ts
+
 .dockerignore
 .env
 *.md
 *.txt
 
 
-react-app/.pnpm-store/
-react-app/.vite/
-react-app/src/sway-api/
-react-app/deploy
+**/.pnpm-store/
+**/.vite/
+**src/sway-api/
+**deploy
 
-indexer/.pnpm-store/
+**/.pnpm-store/
 **/.pnpm-lock.yaml
 **/*.lock
 
 **/__pycache__
+**/.pnpm-store/
