@@ -65,29 +65,22 @@ services:
         condition: service_healthy
     env_file:
       - .env
-  cinder-app:
+  cinder:
     build:
-      context: .
+      context: ./cinder
       dockerfile: Dockerfile
     ports:
       - "5000:5173"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./react-app:/app
+      - ./cinder:/app
       - cinder_node_modules:/app/node_modules
       - ./assets:/assets
-    container_name: cinder-prototype
+    container_name: cinder
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      # Helps file watching inside Docker when bind-mounting sources
-      CHOKIDAR_USEPOLLING: "true"
-      # pnpm may need to reinstall node_modules; in non-TTY runs this avoids interactive prompts
-      CI: "true"
-      VITE_STORAGE_URL: "http://localhost:5001"
-    command: sh -c "pnpm install --no-frozen-lockfile && pnpm dev -- --port 5173 --strictPort"
   storage:
     build:
       context: ./storage
@@ -98,14 +91,13 @@ services:
       - ./storage/uploads:/data/uploads
     container_name: cinder-storage
     restart: unless-stopped
+
   fuel-core:
     image: ghcr.io/fuellabs/fuel-core:sha-6889ed1-20251201045837
+    env_file:
+      - .env
     environment:
-      IP: 0.0.0.0
-      PORT: 4000
-      DB_PATH: /data/.fueldb
-      # Required for PoA block production; without this the node won't produce blocks
-      CONSENSUS_KEY_SECRET: de97d8624a438121b86a1956544bd72ed68cd69f2c99555b08b1e8c51ffd511c
+      - PORT=$LOCAL_NODE_PORT
     ports:
       - "4000:4000"
     volumes:
