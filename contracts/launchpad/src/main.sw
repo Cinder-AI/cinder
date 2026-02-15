@@ -361,17 +361,20 @@ impl Launchpad for Contract {
     fn migrate(asset_id: AssetId) -> bool {
         require_owner();
         let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
-        campaign.status = CampaignStatus::Migrated;
-        storage.campaigns.insert(asset_id, campaign);
+        require(campaign.status == CampaignStatus::Launched, "Not launched");
         let sender = msg_sender().unwrap();
         transfer(sender, asset_id, campaign.amm_reserved);
         transfer(sender, pledge_asset_id(), campaign.curve_reserve);
+
         log(CampaignMigratedEvent {
             asset_id,
             sender,
             base_reserve: campaign.curve_reserve,
             token_reserve: campaign.amm_reserved,
         });
+
+        campaign.status = CampaignStatus::Migrated;
+        storage.campaigns.insert(asset_id, campaign);
         true
     }
 
