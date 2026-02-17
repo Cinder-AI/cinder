@@ -1,35 +1,41 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-
+import { useBalance } from '../hooks/useBalance.tsx'
+import { useContracts } from '../hooks/useContracts.tsx'
 import { useWallet } from '@fuels/react'
+
 import { TokenCard } from '../components/TokenCard.jsx'
 import { AmountSelector } from '../components/AmountSelector.jsx'
 import { useStore } from '../store/StoreProvider.jsx'
 import { Button } from '../components/Button.jsx'
 import { Match } from '../components/Match.tsx'
 import { Airdrop } from '../components/Airdrop.tsx'
-import { useBalance } from '../hooks/useBalance.tsx'
-
-import { useContracts } from '../hooks/useContracts.tsx'
-
-import { formatNumber, toBaseUnits, fromBaseUnits } from '../utils/index.ts'
-
 import { DollarIcon } from '../components/icons/DollarIcon.jsx'
 import { CrossIcon } from '../components/icons/CrossIcon.jsx'
 
-
+import { formatNumber, toBaseUnits } from '../utils/index.ts'
 
 export function DiscoveryPage() {
   const { getTokens, addPledge, getToken, getTokenByName, launchCampaign } = useStore();
   const navigate = useNavigate();
   const { wallet } = useWallet();
   const { launchpad: launchpadContract, assets } = useContracts();
-  const { balances } = useBalance();
+  const { getAmount } = useBalance();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [amount, setAmount] = useState(0);
   const tokens = useMemo(
     () => getTokens().filter(t => String(t.status || '').toLowerCase() === 'active'),
     [getTokens],
+  );
+
+  const fuelBalance = useMemo(
+    () => getAmount(assets?.fuelAssetId),
+    [getAmount, assets?.fuelAssetId]
+  );
+  
+  const cinderBalance = useMemo(
+    () => getAmount(assets?.cinderAssetId),
+    [getAmount, assets?.cinderAssetId]
   );
 
   const [showAirdrop, setShowAirdrop] = useState(false);
@@ -41,23 +47,12 @@ export function DiscoveryPage() {
   const matchTriggerRef = useRef(false);
   const matchTimeoutRef = useRef(null);
 
-  const [sheetContent, setSheetContent] = useState(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const pageContent = useRef(null);
   const layout = useRef(null);
   const buyButtonRef = useRef(null);
   const passButtonRef = useRef(null);
   const swipeControls = useMemo(() => ({ buy: buyButtonRef, pass: passButtonRef }), [buyButtonRef, passButtonRef]);
   
-  const fuelBalance = useMemo(() => {
-    const fuelAssetId = String(assets?.fuelAssetId || '').toLowerCase();
-    if (!fuelAssetId) return 0;
-    const fuelTokenBalance = balances.find(
-      (b) => String(b.assetId || '').toLowerCase() === fuelAssetId,
-    );
-    if (!fuelTokenBalance) return 0;
-    return fromBaseUnits(fuelTokenBalance.amount || 0, fuelTokenBalance.metadata?.decimals ?? 9);
-  }, [assets?.fuelAssetId, balances]);
   const maxPledgeAmount = Math.max(0, Math.floor(fuelBalance));
   const deadToken = getTokenByName('BERT');
   const livingToken = getTokenByName('WaiFU');
@@ -90,7 +85,7 @@ export function DiscoveryPage() {
 
     matchTriggerRef.current = false;
 
-    // Анимируем только токен с id 3: заполняем с 0 до фактического прогресса
+    // Animate only token with id 3: fill from 0 to actual progress
     if (currentToken.id !== 3) {
       setDisplayProgress(base);
       setProgressGlow(base >= 80);
@@ -206,7 +201,6 @@ export function DiscoveryPage() {
 
     const amountBefore = token.totalPledged;
     const progressBefore = token.progress;
-    const amountStr = amount.toString();
     const decimalizedAmount = toBaseUnits(amount);
 
     try {
@@ -226,14 +220,14 @@ export function DiscoveryPage() {
       return false;
     }
 
-    // Вычисляем новые значения ЛОКАЛЬНО, не полагаясь на стейт
+    // Calculate new values locally, not relying on state
     const newTotalPledged = amountBefore + amount;
     const newProgress = Math.round((newTotalPledged / token.target) * 100);
     
-    // Обновляем стейт
+    // Update state
     addPledge(tokenId, amount);
     
-    // Проверяем на ВЫЧИСЛЕННОМ прогрессе
+    // Check calculated progress
     if (newProgress >= 80 && progressBefore < 80) {
       console.log("Launching campaign!");
       launchCampaign(tokenId);

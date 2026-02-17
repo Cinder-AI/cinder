@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useWallet } from '@fuels/react';
 import { useQuery } from '@tanstack/react-query';
 import { TokenInfoOutput } from '../sway-api/contracts/Launchpad';
 import { fuelGraphQL } from '../services/fuelGraphQL';
 import { useContracts } from './useContracts';
+import { fromBaseUnits } from '../utils/index';
 
 interface TokenMetadata {
   name: string;
@@ -101,9 +102,32 @@ export const useBalance = () => {
   const balances = balancesQuery.data || [];
   const ourTokens = useMemo(() => balances.filter((b) => b.source !== 'other'), [balances]);
   const otherTokens = useMemo(() => balances.filter((b) => b.source === 'other'), [balances]);
+  const balancesByAssetId = useMemo(() => {
+    const map = new Map<string, EnrichedBalance>();
+    for (const b of balances) {
+      const key = String(b.assetId || '').toLowerCase();
+      if (key) map.set(key, b);
+    }
+    return map;
+  }, [balances]);
+  
+  const getBalance = useCallback((assetId?: string) => {
+    const key = String(assetId || '').toLowerCase();
+    if (!key) return undefined;
+    return balancesByAssetId.get(key);
+  }, [balancesByAssetId]);
+  
+  const getAmount = useCallback((assetId?: string, fallbackDecimals = 9) => {
+    const b = getBalance(assetId);
+    if (!b) return 0;
+    return fromBaseUnits(b.amount || 0, b.metadata?.decimals ?? fallbackDecimals);
+  }, [getBalance]);
 
   return {
     balances,
+    balancesByAssetId,
+    getBalance,
+    getAmount,
     ourTokens,
     otherTokens,
     loading: balancesQuery.isLoading || launchpadAssetsQuery.isLoading,
