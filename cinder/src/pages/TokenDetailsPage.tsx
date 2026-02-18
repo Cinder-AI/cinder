@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { Button } from '../components/Button.jsx'
-import { AmountSelector } from '../components/AmountSelector.jsx'
-import { BondingCurve } from '../components/BondingCurve.jsx'
-import { TokenDetails } from '../components/TokenDetails.tsx'
-import { Chart } from '../components/Chart.tsx'
+import { Button } from '../components/Button'
+import { AmountSelector } from '../components/AmountSelector'
+import { BondingCurve } from '../components/BondingCurve'
+import { TokenDetails } from '../components/TokenDetails'
+import { Chart } from '../components/Chart'
 import { toBaseUnits } from '../utils/index.ts'
 import { useStore } from '../store/StoreProvider.jsx'
 import { useWallet } from '@fuels/react'
@@ -43,9 +43,9 @@ export function TokenDetailsPage() {
     const budget = toBaseUnits(String(amount * 100), 9);
 
     try {
-      const { waitForResult } = await launchpadContract.functions
+      const { waitForResult } = await (launchpadContract.functions as any)
         .buy({ bits: token.id })
-        .callParams({ forward: { assetId: pledgeAssetId, amount: budget } })
+        .callParams({ forward: { assetId: pledgeAssetId, amount: budget as any } })
         .txParams({ variableOutputs: 2 })
         .call();
       
@@ -74,9 +74,9 @@ export function TokenDetailsPage() {
     const amountInBaseUnits = toBaseUnits(String(amount * 100), 9);
 
     try {
-      const { waitForResult } = await launchpadContract.functions
-        .sell({ bits: token.id }, amountInBaseUnits, 0)
-        .callParams({ forward: { assetId: tokenAssetId, amount: amountInBaseUnits } })
+      const { waitForResult } = await (launchpadContract.functions as any)
+        .sell({ bits: token.id }, amountInBaseUnits as any, 0)
+        .callParams({ forward: { assetId: tokenAssetId, amount: amountInBaseUnits as any } })
         .txParams({ variableOutputs: 2 })
         .call();
       const result = await waitForResult();
@@ -108,7 +108,7 @@ export function TokenDetailsPage() {
     }
 
     const amountIn = toBaseUnits(String(amount * 100), 9);
-    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier];
+    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier] as any;
 
     try {
       await swapExactInWithQuote({
@@ -149,7 +149,7 @@ export function TokenDetailsPage() {
     }
 
     const amountIn = toBaseUnits(String(amount * 100), 9);
-    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier];
+    const poolId = [tokenAssetId, pledgeAssetId, reactorConfig.feeTier] as any;
 
     try {
       await swapExactInWithQuote({
