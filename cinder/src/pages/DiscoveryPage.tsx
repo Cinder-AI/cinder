@@ -1,17 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useBalance } from '../hooks/useBalance.tsx'
-import { useContracts } from '../hooks/useContracts.tsx'
+import { useBalance } from '../hooks/useBalance'
+import { useContracts } from '../hooks/useContracts'
 import { useWallet } from '@fuels/react'
 
-import { TokenCard } from '../components/TokenCard.jsx'
-import { AmountSelector } from '../components/AmountSelector.jsx'
-import { useStore } from '../store/StoreProvider.jsx'
-import { Button } from '../components/Button.jsx'
-import { Match } from '../components/Match.tsx'
-import { Airdrop } from '../components/Airdrop.tsx'
-import { DollarIcon } from '../components/icons/DollarIcon.jsx'
-import { CrossIcon } from '../components/icons/CrossIcon.jsx'
+import { TokenCard } from '../components/TokenCard'
+import { AmountSelector } from '../components/AmountSelector'
+import { useStore } from '../store/StoreProvider'
+import { Button } from '../components/Button'
+import { Match } from '../components/Match'
+import { Airdrop } from '../components/Airdrop'
+import { BottomSheet } from '../components/BottomSheet'
+import { DollarIcon } from '../components/icons/DollarIcon'
+import { CrossIcon } from '../components/icons/CrossIcon'
 
 import { formatNumber, toBaseUnits } from '../utils/index.ts'
 
@@ -153,10 +154,11 @@ export function DiscoveryPage() {
       // Reset any lingering styles on cards after a small delay
       setTimeout(() => {
         document.querySelectorAll('.token-card-wrapper').forEach(el => {
-          el.style.transform = ''
-          el.style.opacity = ''
-          el.style.transition = ''
-          el.classList.remove('swiping-right', 'swiping-left')
+          const node = el as HTMLElement
+          node.style.transform = ''
+          node.style.opacity = ''
+          node.style.transition = ''
+          node.classList.remove('swiping-right', 'swiping-left')
         })
       }, 50)
       return newIndex
@@ -209,9 +211,9 @@ export function DiscoveryPage() {
       console.log("baseAssetId", baseAssetId);
       if (!baseAssetId) throw new Error('Base asset id not available');
 
-      const { waitForResult } = await launchpadContract.functions
-        .pledge({ bits: assetBits }, decimalizedAmount)
-        .callParams({ forward: { assetId: assets.fuelAssetId, amount: decimalizedAmount } })
+      const { waitForResult } = await (launchpadContract.functions as any)
+        .pledge({ bits: assetBits }, decimalizedAmount as any)
+        .callParams({ forward: { assetId: assets.fuelAssetId, amount: decimalizedAmount as any } })
         .call();
       const res = await waitForResult();
       console.log("res", res);
@@ -259,14 +261,7 @@ export function DiscoveryPage() {
   }
 
 
-  const handleMatch = () => {
-    if (showMatch) {
-      return (
-        <Match token={tokens[currentIndex]} />
-      )
-    }
-    return null;
-  }
+  // match rendering handled inline below
 
   const handleAirdropClose = () => {
     setShowAirdrop(false);
@@ -309,33 +304,42 @@ export function DiscoveryPage() {
       <div className="discovery-page-bottom-buttons">
         <AmountSelector
           balance={`${formatNumber(fuelBalance)} FUEL`}
-          onAmountChange={(amount) => setAmount(amount)}
+          onAmountChange={setAmount}
           amount={amount}
-          minRange={0}
-          maxRange={maxPledgeAmount}
-          showButtons={true}
         />
-        <div className="action-buttons">
+
+        <div className="discovery-action-buttons">
           <Button ref={passButtonRef} unstyled className="action-btn pass-btn" onClick={() => next()}><CrossIcon /></Button>
           <Button ref={buyButtonRef} unstyled className="action-btn buy-btn" onClick={handlePledge}><DollarIcon /></Button>
         </div>
-
       </div>
-      <Match 
-        open={showMatch} 
-        token={matchToken} 
-        onClose={() => setShowMatch(false)} 
-        onTradeNow={handleTrade} 
-        onKeepSwiping={handleKeepSwiping} 
-        container={pageContent.current}
-      />
-      <Airdrop
-        open={showAirdrop}
-        dead={deadToken}
-        living={livingToken}
-        onClose={handleAirdropClose}
+
+      <Match
+        open={showMatch}
+        token={matchToken}
+        onClose={() => setShowMatch(false)}
+        onTradeNow={handleTrade}
+        onKeepSwiping={handleKeepSwiping}
         container={layout.current}
       />
+
+      <Airdrop content={null} open={showAirdrop} dead={deadToken} living={livingToken} onClose={handleAirdropClose} />
+
+      <BottomSheet open={showMatch} onClose={() => setShowMatch(false)}>
+        {matchToken && (
+          <div className="match-sheet-content">
+              <div className="match-sheet-token">
+                      <TokenCard {...matchToken} />
+                    </div>
+            <div className="match-sheet-actions">
+              <div className="match-sheet-buttons">
+                <Button type="buy" onClick={handleTrade}>Trade now</Button>
+                <Button type="sell" onClick={handleKeepSwiping}>Keep Swiping</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   )
 }
