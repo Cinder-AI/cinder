@@ -108,7 +108,7 @@ function reducer(state, action) {
       const next = new Map(state.userHoldings)
       if (next.has(tokenId)) {
         const current = next.get(tokenId)
-        next.set(tokenId, { ...current, amount, value })
+        next.set(tokenId, { ...(current as any), amount, value })
       } else {
         next.set(tokenId, { amount, value, canSell: true })
       }
