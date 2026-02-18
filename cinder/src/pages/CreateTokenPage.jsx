@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useMemo } from 'react'
 import { Button } from '../components/Button.jsx'
 import { Field, TextArea } from '../components/Field.jsx'
 import { AmountSelector } from '../components/AmountSelector.jsx'
@@ -6,11 +6,17 @@ import { BottomSheet } from '../components/BottomSheet.jsx'
 import { CoinCreatedNotification } from '../components/notifications/CoinCreatedNotification.jsx'
 import { useStore } from '../store/StoreProvider.jsx'
 import { useContracts } from '../hooks/useContracts.tsx'
+import { useBalance } from '../hooks/useBalance.tsx'
 
 export function CreateTokenPage() {
   const { addToken } = useStore()
-  const contracts = useContracts()
+  const { contracts, assets } = useContracts()
   const launchpad = contracts?.launchpad
+  const { getAmount } = useBalance()
+  const cinderBalance = useMemo(
+    () => getAmount(assets?.cinderAssetId || ''),
+    [getAmount, assets?.cinderAssetId]
+  )
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
@@ -100,7 +106,15 @@ export function CreateTokenPage() {
       <div className="amount-selector-field">
         <h3>CIN Sacrifice</h3>
         <p>More you burn, the longer you shine</p>
-        <AmountSelector balance={'250 CIN'} showButtons={false} tokenName={'CIN'} onAmountChange={setAmount} />
+        <AmountSelector 
+          balance={`${cinderBalance} CIN`} 
+          showButtons={false} 
+          tokenName={'CIN'} 
+          amount={amount} 
+          onAmountChange={setAmount}
+          minRange={0}
+          maxRange={Math.max(0, Math.floor(Number(cinderBalance) || 0))}
+        />
       </div>
 
       <div className="create-button-container">
