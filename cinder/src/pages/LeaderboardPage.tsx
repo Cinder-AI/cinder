@@ -136,7 +136,7 @@ export const LeaderboardPage = () => {
     const node = tableRef.current;
     if (!node) return;
 
-    const rows = Array.from(node.querySelectorAll(".leaderboard-row"));
+    const rows = Array.from(node.querySelectorAll(".leaderboard-row")) as HTMLElement[];
     const bottom = rows.slice(5, 9); // позиции 6–9
     const viewportHeight = window.innerHeight;
 
@@ -218,7 +218,7 @@ export const LeaderboardPage = () => {
     const table = tableRef.current;
     if (!table) return;
 
-    const rows = Array.from(table.querySelectorAll(".leaderboard-row"));
+    const rows = Array.from(table.querySelectorAll(".leaderboard-row")) as HTMLElement[];
     const prev = positionsRef.current;
     const next = new Map();
 

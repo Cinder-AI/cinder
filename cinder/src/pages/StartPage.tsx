@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { BottomSheet } from '../components/BottomSheet.jsx'
-import { LoginForm } from '../components/auth/LoginForm.jsx'
-import { RegisterForm } from '../components/auth/RegisterForm.jsx'
-import { VerifyEmailForm } from '../components/auth/VerifyEmailForm.jsx'
+import { BottomSheet } from '../components/BottomSheet'
+import { LoginForm } from '../components/auth/LoginForm'
+import { RegisterForm } from '../components/auth/RegisterForm'
+import { VerifyEmailForm } from '../components/auth/VerifyEmailForm'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../components/Button.jsx'
+import { Button } from '../components/Button'
 
 export function StartPage() {
   const navigate = useNavigate()
@@ -26,7 +26,7 @@ export function StartPage() {
     setSheetContent(<RegisterForm onVerify={(email, userData) => openVerify(email, 'register', userData)} />)
     setSheetOpen(true)
   }
-  function openVerify(email, type, userData) {
+  function openVerify(email: string, type: string, userData?: any) {
     setSheetContent(<VerifyEmailForm email={email} onBack={() => { type === 'login' ? openLogin() : openRegister() }} onSuccess={(code) => { localStorage.setItem('isLoggedIn', 'true'); localStorage.setItem('userEmail', email); if (userData) localStorage.setItem('userData', JSON.stringify(userData)); setSheetOpen(false); navigate('/discovery') }} />)
   }
 

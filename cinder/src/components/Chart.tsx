@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Token } from '../types/index'
+import type { Token } from '../types/index'
 import { formatNumber } from '../utils/index'
 import { BondingCurve } from './BondingCurve'
 import { sseApi, type ChartHistoryResponse, type ChartSummary } from '../services/indexerGraphQL'
 import '@styles/components/chart.css'
 
 interface ChartProps {
-  token: Token;
+  token: any;
   width?: number;
   height?: number;
 }
@@ -46,7 +46,7 @@ const formatUsdDisplay = (value: number) => {
   return safe.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })
 }
 
-const buildFallbackSeries = (token: Token): Point[] => {
+const buildFallbackSeries = (token: any): Point[] => {
   const base = clampPrice(token.price)
   return Array.from({ length: SERIES_LENGTH }, (_, index) => {
     const drift = 1 + index * 0.0002
@@ -182,7 +182,7 @@ const pointsFromHistory = (history: ChartHistoryResponse): Point[] => {
   return normalizeSeries(candlePrices)
 }
 
-const resolveBaseMarketCap = (token: Token, price: number) => {
+const resolveBaseMarketCap = (token: any, price: number) => {
   const cap = Number(token.marketCap)
   if (Number.isFinite(cap) && cap > 0) return cap
 

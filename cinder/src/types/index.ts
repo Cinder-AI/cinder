@@ -1,4 +1,4 @@
-import { AssetId, SubId } from "fuels";
+import { AssetId } from "fuels";
 
 export enum CampaignStatus {
     Active = "active",
@@ -10,7 +10,6 @@ interface Campaign {
     creator: string;
     status: CampaignStatus;
     tokenId: AssetId;
-    subId: SubId;
     totalPledged: number;
     totalSupply: number;
     token: Token;
@@ -25,7 +24,6 @@ interface TokenMedia {
 interface Token {
     id: number;
     assetId: AssetId;
-    subId: SubId;
     name: string;
     ticker: string;
     description: string;

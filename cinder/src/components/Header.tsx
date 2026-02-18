@@ -1,26 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store/StoreProvider.jsx'
+import { useStore } from '../store/StoreProvider'
 import { useConnect, useConnectUI, useIsConnected } from '@fuels/react'
-import { useContracts } from '../hooks/useContracts.tsx'
+import { useContracts } from '../hooks/useContracts'
 import { useWallet } from '@fuels/react'
 import { getContracts } from '../config/contracts.ts'
 
-import { Button } from './Button.jsx'
-import { ProfilePopup } from './ProfilePopup.tsx'
+import { Button } from './Button'
+import { ProfilePopup } from './ProfilePopup'
 import Logo from '@assets/fire.svg'
 import FuelLogo from '@assets/fuel.png'
 import WalletIcon from '@assets/wallet.svg'
-import { BackButtonIcon } from './icons/BackButtonIcon.jsx'
-import { CinderIcon } from './icons/CinderIcon.jsx'
+import { BackButtonIcon } from './icons/BackButtonIcon'
+import { CinderIcon } from './icons/CinderIcon'
 import { Fuel } from '../sway-api/contracts/Fuel.ts'
 
 export function Header({ title = 'Cinder', showCreate = false, showBalance = false, showBackButton = false }) {
   const navigate = useNavigate()
-  const { getUserHoldings } = useStore()
+  const { getUserHoldings, getUserBalance } = useStore()
   const [profileOpen, setProfileOpen] = useState(false)
   const { connect } = useConnectUI()
-  const { _connect } = useConnect()
   const { isConnected, refetch } = useIsConnected()
   const { wallet } = useWallet()
   const ids = getContracts()
@@ -120,7 +119,7 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
             <Button label="+ Create" type="create" className="header-create-btn" onClick={onCreateClick} />
           )}
           {isConnected && showBalance && (
-            <div className="header-balance">$CIN {balance.CIN}</div>
+            <div className="header-balance">$CIN {getUserBalance?.() ?? ''}</div>
           )}
           {profile()}
         </div>
