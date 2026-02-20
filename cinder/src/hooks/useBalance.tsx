@@ -24,7 +24,7 @@ interface EnrichedBalance {
 export const useBalance = () => {
   const { wallet } = useWallet();
   const { launchpad, cinder, assets, initialized } = useContracts();
-  const walletAddress = wallet?.address?.toString() || '';
+  const walletAddress = wallet?.address?.toB256?.() || wallet?.address?.toString() || '';
 
   const launchpadAssetsQuery = useQuery({
     queryKey: ['launchpad-assets', launchpad?.id?.toString?.() || 'none'],
