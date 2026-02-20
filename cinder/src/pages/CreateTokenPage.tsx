@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo } from 'react'
+import { bn } from 'fuels'
 import { Button } from '../components/Button.jsx'
 import { Field, TextArea } from '../components/Field.jsx'
 import { AmountSelector } from '../components/AmountSelector.jsx'
@@ -7,6 +8,7 @@ import { CoinCreatedNotification } from '../components/notifications/CoinCreated
 import { useStore } from '../store/StoreProvider.jsx'
 import { useContracts } from '../hooks/useContracts.tsx'
 import { useBalance } from '../hooks/useBalance.tsx'
+import storageService from '../services/storage-service'
 
 export function CreateTokenPage() {
   const { addToken } = useStore()
@@ -17,11 +19,12 @@ export function CreateTokenPage() {
     () => getAmount(assets?.cinderAssetId || ''),
     [getAmount, assets?.cinderAssetId]
   )
+  console.log('Cinder balance:', cinderBalance)
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [description, setDescription] = useState('')
   const [aiCharacterPrompt, setAiCharacterPrompt] = useState('')
-  const [amount, setAmount] = useState(10000)
+  const [amount, setAmount] = useState(0)
   const [imageData, setImageData] = useState(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [createdToken, setCreatedToken] = useState(null)
@@ -59,8 +62,13 @@ export function CreateTokenPage() {
       target: 1000000
     }
     try {
+      // upload image to storage service and pass filename/url to contract
+      const uploadedName = await storageService.uploadDataUrl(imageData, `${ticker.trim() || 'upload'}.jpg`)
+
       const { waitForResult } = await launchpad.functions
-        .create_campaign(name.trim(), ticker.trim(), description ?? '', imageData)
+        .create_campaign(name.trim(), ticker.trim(), description ?? '', uploadedName)
+        .callParams({ forward: { assetId: assets?.cinderAssetId || '', amount: bn(amount * 1_000_000_000) } })
+        .txParams({ variableOutputs: 2 })
         .call()
       const { value: assetId } = await waitForResult()
       const created = { ...token, assetId: assetId?.bits || '' }
@@ -68,7 +76,8 @@ export function CreateTokenPage() {
       setCreatedToken(created)
       setSheetOpen(true)
     } catch (error) {
-      alert(error?.message || 'Failed to create campaign')
+      console.log(error)
+      console.log(error?.message || 'Failed to create campaign')
     } finally {
       setIsCreating(false)
     }
