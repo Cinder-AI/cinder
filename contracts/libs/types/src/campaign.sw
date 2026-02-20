@@ -6,6 +6,7 @@ use std::{
 };
 
 use ::bonding::BondingCurve;
+use ::boost::Boost;
 
 pub enum CampaignStatus {
     Active: (),
@@ -41,4 +42,5 @@ pub struct Campaign {
     pub total_supply: u64,
     pub curve: BondingCurve,
     pub amm_reserved: u64,
+    pub boost: Option<Boost>,
 }

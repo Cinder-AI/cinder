@@ -24,8 +24,8 @@ dependencies = ["std"]
 
 [[package]]
 name = "std"
-version = "0.69.1"
-source = "registry+std?0.69.1#QmbPunScay4xpfHKpxQ71dFKXSiyJuPP8P8YhgX5Dkmzm9!"
+version = "0.70.1"
+source = "registry+std?0.70.1#QmU7w9Aqa6jvQcj72HS8uqfFk3ieiC74WsZGaRfUrW1u41!"
 
 [[package]]
 name = "types"
@@ -35,5 +35,14 @@ dependencies = [
     "src3",
     "src5",
     "src7",
+    "std",
+    "utils",
+]
+
+[[package]]
+name = "utils"
+source = "path+from-root-F1778461C79663D6"
+dependencies = [
+    "src5",
     "std",
 ]

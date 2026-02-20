@@ -2,6 +2,7 @@ library;
 
 use std::string::String;
 use std::identity::Identity;
+use ::boost::{Boost};
 
 
 pub struct TokenInfo {
@@ -19,4 +20,3 @@ pub struct Pledge {
     pub asset_id: AssetId,
     pub claimed: bool,
 }
-

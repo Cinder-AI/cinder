@@ -49,3 +49,13 @@ pub struct SetOwnerEvent {
 pub struct InitializeEvent {
     pub owner: Identity
 }
+
+pub struct MintEvent {
+    pub recipient: Identity,
+    pub amount: u64,
+}
+
+pub struct BurnEvent {
+    pub sender: Identity,
+    pub amount: u64,
+}

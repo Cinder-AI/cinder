@@ -5,11 +5,12 @@ use std::{
     string::String,
     alias::SubId,
 };
-use ::structs::TokenInfo;
+use ::structs::{TokenInfo};
+use ::boost::Boost;
 use ::campaign::Campaign;
 
 abi Launchpad {
-    #[storage(read, write)]
+    #[storage(read, write), payable]
     fn create_campaign(
         name: String,
         ticker: String,
@@ -17,7 +18,7 @@ abi Launchpad {
         image: String,
     ) -> AssetId;
 
-    #[storage(read, write), payable]
+    #[storage(read, write)]
     fn deny_campaign(asset_id: AssetId) -> bool;
 
     #[storage(read, write)]
@@ -68,4 +69,12 @@ abi Launchpad {
     #[storage(read, write)]
     fn set_owner(owner: Identity);
 
+    #[storage(read, write)]
+    fn mint_cinder(recipient: Identity, amount: u64) -> bool;
+
+    #[storage(read, write), payable]
+    fn boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost;
+
+    #[storage(read)]
+    fn get_creator_boost_credit(creator: Identity) -> u64;
 }

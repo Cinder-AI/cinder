@@ -8,6 +8,7 @@ use std::{
     storage::storage_vec::*,
     asset::{mint, burn, transfer, mint_to},
     call_frames::msg_asset_id,
+    constants::DEFAULT_SUB_ID,
     context::{msg_amount},
     hash::sha256,
     logging::log,
@@ -15,6 +16,7 @@ use std::{
     identity::Identity,
     contract_id::ContractId,
     assert::assert,
+    block::timestamp,
 };
 
 use events::{
@@ -29,11 +31,14 @@ use events::{
     SellEvent,
     MintEvent,
     BurnEvent,
+    BoostEvent,
 };
 use types::launchpad::Launchpad;
+use types::cinder::CinderToken;
 use types::campaign::{CampaignStatus, Campaign};
 use types::bonding::BondingCurve;
 use types::structs::{TokenInfo, Pledge};
+use types::boost::{Boost, BoostStatus};
 use utils::*;
 
 use src20::{TotalSupplyEvent, SRC20};
@@ -46,6 +51,7 @@ configurable {
     MIGRATION_TARGET: u64 = 1_000_000_000_000_000,
     INITIAL_SUPPLY: u64 = 1_000_000_000_000_000_000,
     PLEDGE_ASSET_ID: b256 = 0x60cf8cfde5ea5885829caafdcc3583114c90f74816254c75af8cedca050b0d0d,
+    CINDER_CONTRACT_ID: b256 = 0x3f7fbd9de81246302e438bf32031e3938d39d6858acfba4666e6ca565672d940,
     CURVE_SUPPLY_PERCENT: u64 = 80,
     INSTANT_LAUNCH_THRESHOLD_PERCENT: u64 = 80,
 }
@@ -62,10 +68,23 @@ storage {
     campaigns: StorageMap<AssetId, Campaign> = StorageMap {},
     campaign_counter: u64 = 0,
     owner: State = State::Uninitialized,
+    creator_boost_credit: StorageMap<Identity, u64> = StorageMap {},
 }
 
 
 // ------ HELPER FUNCTIONS ------
+
+fn pledge_asset_id() -> AssetId {
+    if PLEDGE_ASSET_ID == b256::zero() {
+        AssetId::base()
+    } else {
+        AssetId::from(PLEDGE_ASSET_ID)
+    }
+}
+
+fn cinder_asset_id() -> AssetId {
+    AssetId::new(ContractId::from(CINDER_CONTRACT_ID), DEFAULT_SUB_ID)
+}
 
 #[storage(read)]
 fn get_creator_campaigns(creator: Identity) -> Vec<Campaign> {
@@ -93,6 +112,16 @@ fn get_active_campaigns(creator_campaigns: Vec<Campaign>) -> Vec<Campaign> {
         i += 1;
     }
     campaigns
+}
+
+#[storage(read)]
+fn read_credit(creator: Identity) -> u64 {
+    storage.creator_boost_credit.get(creator).try_read().unwrap_or(0)
+}
+
+#[storage(write)]
+fn write_credit(creator: Identity, credit: u64) {
+    storage.creator_boost_credit.insert(creator, credit);
 }
 
 #[storage(read)]
@@ -141,6 +170,56 @@ fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
     true
 }
 
+#[storage(read, write)]
+fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
+    let sender = msg_sender().unwrap();
+    let now_ts = timestamp();
+    let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+
+    require(campaign.status == CampaignStatus::Active, "Campaign is not active");
+    require(campaign.creator == sender, "Sender is not the campaign creator");
+
+    let cinder = abi(CinderToken, CINDER_CONTRACT_ID);
+    let cinder_asset_id = cinder_asset_id();
+    let paid_amount = msg_amount();
+
+    require(paid_amount == burn_amount, "Insufficient amount provided");
+    require(msg_asset_id() == cinder_asset_id, "Sent asset is not the cinder asset");
+
+    // if there are some leftovers from previous boosts, add them to the current burn amount
+    let credit = read_credit(sender);
+    require(burn_amount > 0 || credit > 0, "Burn amount must be greater than 0");
+    let effective_burn = burn_amount + credit;
+
+    if burn_amount > 0 {
+        // if cinder burn reverts, whole tx will be reverted
+        // if there is leftover credit, we don't add it to the burn amount
+        // to make
+        let success = cinder.burn_cinder {
+            coins: burn_amount,
+            asset_id: cinder_asset_id.into(),
+            gas: 1000000000,
+        }(sender, burn_amount);
+        require(success, "Cinder burn failed");
+    }
+
+    let boost = Boost::new(effective_burn, now_ts);
+    campaign.boost = Some(boost);
+    storage.campaigns.insert(asset_id, campaign);
+
+    log(BoostEvent {
+        asset_id,
+        creator: sender,
+        burn_amount,
+        burned_at: now_ts,
+        boost_power_x1e6: boost.boost_power_x1e6,
+        duration_secs: boost.duration_secs,
+        ends_at: boost.ends_at,
+    });
+
+    boost
+}
+
 #[storage(read)]
 fn read_token_info(asset_id: AssetId) -> TokenInfo {
     let name = storage.name.get(asset_id).read_slice().unwrap();
@@ -158,6 +237,9 @@ fn read_token_info(asset_id: AssetId) -> TokenInfo {
         decimals: decimals,
     }
 }
+
+// #[storage(read)]
+// fn get_boosts()
 
 // ------ SRC IMPLEMENTATIONS ------
 
@@ -294,7 +376,7 @@ impl Launchpad for Contract {
         campaigns
     }
 
-    #[storage(read, write)]
+    #[storage(read, write), payable]
     /// Creates a new campaign and initializes its metadata.
     /// Generates deterministic sub_id from (counter, sender).
     fn create_campaign(
@@ -329,6 +411,7 @@ impl Launchpad for Contract {
             sub_id: sub_id,
             curve: curve,
             amm_reserved: 0,
+            boost: None,
         };
         storage.campaigns.insert(asset_id, campaign);
         storage.campaign_counter.write(counter + 1);
@@ -340,12 +423,18 @@ impl Launchpad for Contract {
             target: MIGRATION_TARGET,
             token_info: read_token_info(asset_id),
         });
+
+        let msg_amount = msg_amount();
+        let cinder_asset_id = cinder_asset_id();
+        if msg_amount > 0 {
+            require(msg_asset_id() == cinder_asset_id, "Sent asset is not the cinder asset");
+            _boost_campaign(asset_id, msg_amount);
+        }
         asset_id
     }
 
     #[storage(read, write)]
-    #[payable]
-    /// Denies an active campaign and refunds all pledges.
+    /// yies an active campaign and refunds all pledges.
     /// Only valid for Active campaigns.
     fn deny_campaign(
         asset_id: AssetId,
@@ -357,6 +446,15 @@ impl Launchpad for Contract {
         let sender = msg_sender().unwrap();
         campaign.status = CampaignStatus::Denied;
         storage.campaigns.insert(asset_id, campaign);
+        if campaign.boost.is_some() {
+            let mut boost = campaign.boost.unwrap();
+            let timestamp = timestamp();
+            let credit = boost.carryover_credit(timestamp);
+            write_credit(sender, credit);
+            boost.status = BoostStatus::CarriedOver;
+            campaign.boost = Some(boost);
+        }
+
         log(CampaignDeniedEvent {
             asset_id,
             sender,
@@ -423,7 +521,7 @@ impl Launchpad for Contract {
         require(campaign.status == CampaignStatus::Launched, "Not launched");
         let sender = msg_sender().unwrap();
         transfer(sender, asset_id, campaign.amm_reserved);
-        transfer(sender, PLEDGE_ASSET_ID, campaign.curve_reserve);
+        transfer(sender, pledge_asset_id(), campaign.curve_reserve);
 
         log(CampaignMigratedEvent {
             asset_id,
@@ -453,7 +551,7 @@ impl Launchpad for Contract {
             let mut pledge = pledges_vec.get(i).unwrap().read();
             if pledge.sender == sender {
                 require(!pledge.claimed, "Already claimed");
-                transfer(sender, PLEDGE_ASSET_ID, pledge.amount);
+                transfer(sender, pledge_asset_id(), pledge.amount);
                 pledge.claimed = true;
                 pledges_vec.set(i, pledge);
                 return true;
@@ -474,7 +572,7 @@ impl Launchpad for Contract {
         require(campaign.status == CampaignStatus::Launched, "Not launched");
 
         let sent_asset = msg_asset_id();
-        let pledge_asset = PLEDGE_ASSET_ID;
+        let pledge_asset = pledge_asset_id();
         require(sent_asset == pledge_asset, "Sent asset is not the pledge asset");
 
         let budget = msg_amount();
@@ -488,7 +586,7 @@ impl Launchpad for Contract {
         storage.campaigns.insert(asset_id, campaign);
 
         if budget > cost {
-            transfer(sender, PLEDGE_ASSET_ID, budget - cost);
+            transfer(sender, pledge_asset_id(), budget - cost);
         }
         transfer(sender, asset_id, best);
         log(BuyEvent {
@@ -526,7 +624,7 @@ impl Launchpad for Contract {
         campaign.curve_reserve -= payout;
         storage.campaigns.insert(asset_id, campaign);
 
-        transfer(sender, PLEDGE_ASSET_ID, payout);
+        transfer(sender, pledge_asset_id(), payout);
         log(SellEvent {
             asset_id,
             sender,
@@ -554,7 +652,7 @@ impl Launchpad for Contract {
         require(amount > 0, "Amount must be greater than 0");
 
         let sent_asset = msg_asset_id();
-        let pledge_asset = PLEDGE_ASSET_ID;
+        let pledge_asset = pledge_asset_id();
         require(sent_asset == pledge_asset, "Sent asset is not the pledge asset");
 
         let sent_amount = msg_amount();
@@ -677,5 +775,22 @@ impl Launchpad for Contract {
         asset_id: AssetId
     ) -> TokenInfo {
         read_token_info(asset_id)
+    }
+
+    #[storage(read, write)]
+    fn mint_cinder(recipient: Identity, amount: u64) -> bool {
+        let cinder = abi(CinderToken, CINDER_CONTRACT_ID);
+        cinder.mint_cinder(recipient, amount);
+        true
+    }
+
+    #[storage(read, write), payable]
+    fn boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
+        _boost_campaign(asset_id, burn_amount)
+    }
+
+    #[storage(read)]
+    fn get_creator_boost_credit(creator: Identity) -> u64 {
+        read_credit(creator)
     }
 }

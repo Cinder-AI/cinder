@@ -7,7 +7,7 @@ use src7::{SRC7, Metadata, SetMetadataEvent};
 use src20::{SRC20, TotalSupplyEvent, SetNameEvent, SetSymbolEvent, SetDecimalsEvent};
 use src5::{SRC5, State};
 use types::cinder::CinderToken;
-use types::structs::TokenInfo;
+use types::structs::{ TokenInfo };
 use utils::*;
 
 use std::{
@@ -20,7 +20,7 @@ use std::{
     logging::log,
 };
 
-use events::{InitializeEvent, SetImageEvent, SetOwnerEvent};
+use events::{InitializeEvent, SetImageEvent, SetOwnerEvent, MintEvent, BurnEvent, BoostEvent};
 
 configurable {
     MAX_SUPPLY: u64 = 1_000_000_000,
@@ -102,38 +102,54 @@ impl SRC7 for Contract {
     }
 }
 
+#[storage(read, write)]
+fn _mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) -> bool {
+    require_owner(storage.owner.read());
+    require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
+    let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
+    let current_supply = storage.total_supply.read();
+    let new_supply = current_supply + amount;
+    require(new_supply <= MAX_SUPPLY, "Exceeds max supply");
+    mint_to(recipient, DEFAULT_SUB_ID, amount);
+    storage
+        .total_supply
+        .write(new_supply);
+    log(MintEvent {
+        recipient,
+        amount,
+    });
+    true
+}
+
+#[storage(read, write)]
+fn _burn(sender: Identity, sub_id: SubId, amount: u64) -> bool {
+    require_owner(storage.owner.read());
+    require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
+    require(msg_amount() == amount, "Incorrect amount provided");
+    require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
+
+    let current_supply = storage.total_supply.read();
+    let new_supply = current_supply - amount;
+    storage
+        .total_supply
+        .write(new_supply);
+    burn(DEFAULT_SUB_ID, amount);
+    log(BurnEvent {
+        sender,
+        amount,
+    });
+    true
+}
+
 impl SRC3 for Contract {
     #[storage(read, write)]
     fn mint(recipient: Identity, sub_id: Option<SubId>, amount: u64) {
-        require_owner(storage.owner.read());
-        require(sub_id.is_some() && sub_id.unwrap() == DEFAULT_SUB_ID, "Incorrect Sub ID");
-
-        let asset_id = AssetId::new(ContractId::this(), DEFAULT_SUB_ID);
-        let current_supply = storage.total_supply.read();
-        let new_supply = current_supply + amount;
-        storage
-            .total_supply
-            .write(new_supply);
-
-        mint_to(recipient, sub_id.unwrap(), amount);
-        TotalSupplyEvent::new(AssetId::default(), new_supply, msg_sender().unwrap()).log();
+        _mint(recipient, sub_id, amount);
     }
 
     #[storage(read, write), payable]
     fn burn(sub_id: SubId, amount: u64) {
-        require_owner(storage.owner.read());
-        require(sub_id == DEFAULT_SUB_ID, "Incorrect Sub ID");
-        require(msg_amount() >= amount, "Incorrect amount provided");
-        require(msg_asset_id() == AssetId::default(), "Incorrect asset id");
-
-        let current_supply = storage.total_supply.read();
-        let new_supply = current_supply - amount;
-        storage
-            .total_supply
-            .write(new_supply);
-
-        burn(DEFAULT_SUB_ID, amount);
-        TotalSupplyEvent::new(AssetId::default(), new_supply, msg_sender().unwrap()).log();
+        _burn(msg_sender().unwrap(), sub_id, amount);
     }
 }
 
@@ -141,11 +157,12 @@ impl SRC3 for Contract {
 
 impl CinderToken for Contract {
     #[storage(read, write)]
-    fn initialize(owner: Identity) {
+    fn initialize(owner: Identity) -> bool {
         require(!storage.initialized.read(), "Contract already initialized");
         storage.initialized.write(true);
         storage.owner.write(State::Initialized(owner));
         log(InitializeEvent{ owner });
+        true
     }
 
     #[storage(read, write)]
@@ -177,5 +194,15 @@ impl CinderToken for Contract {
         storage.image.write_slice(image);
         
         SetImageEvent::new(AssetId::default(), Some(image), msg_sender().unwrap()).log();
+    }
+
+    #[storage(read, write)]
+    fn mint_cinder(recipient: Identity, amount: u64) {
+        _mint(recipient, Some(DEFAULT_SUB_ID), amount);
+    }
+
+    #[storage(read, write), payable]
+    fn burn_cinder(sender: Identity, amount: u64) -> bool {
+        _burn(sender, DEFAULT_SUB_ID, amount)
     }
 }
