@@ -14,8 +14,13 @@ contracts/target
 **deploy
 
 **/.pnpm-store/
-**/.pnpm-lock.yaml
+
+**/pnpm-lock.yaml
 **/*.lock
 
 **/__pycache__
 **/.pnpm-store/
+.codebase
+
+storage/uploads
+scripts
