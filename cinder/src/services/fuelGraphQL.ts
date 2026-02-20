@@ -52,7 +52,7 @@ class FuelGraphQLService {
   /**
    * Получает балансы для указанного адреса
    */
-  async getBalances(ownerAddress: string, limit: number = 20): Promise<Balance[]> {
+  async getBalances(ownerAddress: string, limit: number = 200): Promise<Balance[]> {
     const query = `
       query Balances($filter: BalanceFilterInput, $first: Int) {
         balances(filter: $filter, first: $first) {
