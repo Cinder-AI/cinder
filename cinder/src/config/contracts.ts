@@ -14,8 +14,8 @@ export const CONTRACT_ADDRESSES: Record<DappEnvironment, ContractIds> = {
     FUEL: '',
   },
   testnet: {
-    CINDER: '0xdabf826821330da6d59b8941a1596969dfb5a677b5d2f451b5edb896406a7d0b',
-    LAUNCHPAD: '0x4b1c92d54ceee13893586790c6231b7e27065d66b0bcea2a4fdfa3b46485c00d',
+    CINDER: '0xd3bcd74f5b94bf797430b887ac1413c4d9d71b634f2080a2f8ea6193028c9e3a',
+    LAUNCHPAD: '0xf9877f27adf45934199405c7367f59bb026b0b13c2dfc0f87e6c4428a6b7f325',
     FUEL: '0x3b3e04f181faba12392a348cd8ad9363af0e5e23dc44ef66a316e90dde7a5ca5',
   },
   // TODO: Fill in mainnet addresses when deployed
