@@ -3,56 +3,26 @@
  * Add your static configuration values here
  */
 
+const nodeEnv = typeof process !== 'undefined' ? process.env : {};
+const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+const ENV = { ...nodeEnv, ...metaEnv };
+
 export const APP_CONFIG = {
-  /**
-   * Owner wallet address for the dApp
-   * TODO: Replace with actual owner wallet address
-   */
-  OWNER_WALLET: '',
-
-  /**
-   * API base URL for backend services
-   * TODO: Replace with actual API URL
-   */
-  API_BASE_URL: '',
-
-  /**
-   * IPFS gateway URL for fetching metadata
-   */
-  IPFS_GATEWAY: 'https://ipfs.io/ipfs/',
-
-  /**
-   * Default sub ID for Fuel transactions
-   */
-  DEFAULT_SUB_ID: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  OWNER_WALLET: ENV.VITE_OWNER_WALLET || ENV.OWNER_WALLET || '',
+  API_BASE_URL: ENV.API_BASE_URL || '',
+  STORAGE_URL: ENV.VITE_STORAGE_URL || ENV.STORAGE_URL || '',
+  SSE_URL: ENV.VITE_SSE_URL || ENV.SSE_URL || '',
+  INDEXER_URL: ENV.VITE_INDEXER_URL || ENV.INDEXER_URL || '',
+  DEFAULT_SUB_ID:
+    '0x0000000000000000000000000000000000000000000000000000000000000000',
 } as const;
 
-/**
- * Token configuration
- */
 export const TOKEN_CONFIG = {
-  /**
-   * Maximum supply for tokens
-   */
   MAX_SUPPLY: 1_000_000,
-
-  /**
-   * Default decimals for tokens
-   */
   DECIMALS: 9,
 } as const;
 
-/**
- * UI configuration
- */
 export const UI_CONFIG = {
-  /**
-   * Number of items per page
-   */
   ITEMS_PER_PAGE: 10,
-
-  /**
-   * Toast notification duration in milliseconds
-   */
   TOAST_DURATION: 5000,
 } as const;
