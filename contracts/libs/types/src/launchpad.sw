@@ -74,7 +74,4 @@ abi Launchpad {
 
     #[storage(read, write), payable]
     fn boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost;
-
-    #[storage(read)]
-    fn get_creator_boost_credit(creator: Identity) -> u64;
 }

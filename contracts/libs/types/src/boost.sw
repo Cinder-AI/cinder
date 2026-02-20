@@ -20,7 +20,6 @@ pub const CARRYOVER_FACTOR_X1E6: u64 = 800_000; // 0.8
 pub enum BoostStatus {
     Active: (),
     Expired: (),
-    CarriedOver: (),
 }
 
 impl PartialEq for BoostStatus {
@@ -28,7 +27,6 @@ impl PartialEq for BoostStatus {
         match (self, other) {
             (BoostStatus::Active, BoostStatus::Active) => true,
             (BoostStatus::Expired, BoostStatus::Expired) => true,
-            (BoostStatus::CarriedOver, BoostStatus::CarriedOver) => true,
             _ => false,
         }
     }
@@ -144,12 +142,6 @@ impl Boost {
         u256_to_u64((u256::from(remaining) * FP_X1E6) / u256::from(self.duration_secs))
     }
 
-    pub fn carryover_credit(self, now_ts: u64) -> u64 {
-        let rr_x1e6 = self.remaining_ratio_x1e6(now_ts);
-        let num = u256::from(self.burn_amount) * u256::from(rr_x1e6) * u256::from(CARRYOVER_FACTOR_X1E6);
-        let den = FP_X1E6 * FP_X1E6;
-        u256_to_u64(num / den)
-    }
 }
 
 #[test]
@@ -176,19 +168,4 @@ fn test_remaining_ratio_x1e6() {
     };
     let ratio = boost.remaining_ratio_x1e6(13_581);
     assert_eq(ratio, 500_000);
-}
-
-#[test]
-fn test_carryover_credit() {
-    let boost = Boost {
-        burn_amount: 300,
-        burned_at: 0,
-        boost_power_x1e6: 1_386_294, 
-        duration_secs: 27_162,
-        ends_at: 27_162,
-        status: BoostStatus::Active, 
-    };
-
-    let credit = boost.carryover_credit(13_581);
-    assert_eq(credit, 120);
 }

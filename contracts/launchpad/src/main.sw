@@ -68,7 +68,6 @@ storage {
     campaigns: StorageMap<AssetId, Campaign> = StorageMap {},
     campaign_counter: u64 = 0,
     owner: State = State::Uninitialized,
-    creator_boost_credit: StorageMap<Identity, u64> = StorageMap {},
 }
 
 
@@ -112,16 +111,6 @@ fn get_active_campaigns(creator_campaigns: Vec<Campaign>) -> Vec<Campaign> {
         i += 1;
     }
     campaigns
-}
-
-#[storage(read)]
-fn read_credit(creator: Identity) -> u64 {
-    storage.creator_boost_credit.get(creator).try_read().unwrap_or(0)
-}
-
-#[storage(write)]
-fn write_credit(creator: Identity, credit: u64) {
-    storage.creator_boost_credit.insert(creator, credit);
 }
 
 #[storage(read)]
@@ -186,11 +175,6 @@ fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
     require(paid_amount == burn_amount, "Insufficient amount provided");
     require(msg_asset_id() == cinder_asset_id, "Sent asset is not the cinder asset");
 
-    // if there are some leftovers from previous boosts, add them to the current burn amount
-    let credit = read_credit(sender);
-    require(burn_amount > 0 || credit > 0, "Burn amount must be greater than 0");
-    let effective_burn = burn_amount + credit;
-
     if burn_amount > 0 {
         // if cinder burn reverts, whole tx will be reverted
         // if there is leftover credit, we don't add it to the burn amount
@@ -203,7 +187,7 @@ fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
         require(success, "Cinder burn failed");
     }
 
-    let boost = Boost::new(effective_burn, now_ts);
+    let boost = Boost::new(burn_amount, now_ts);
     campaign.boost = Some(boost);
     storage.campaigns.insert(asset_id, campaign);
 
@@ -446,14 +430,6 @@ impl Launchpad for Contract {
         let sender = msg_sender().unwrap();
         campaign.status = CampaignStatus::Denied;
         storage.campaigns.insert(asset_id, campaign);
-        if campaign.boost.is_some() {
-            let mut boost = campaign.boost.unwrap();
-            let timestamp = timestamp();
-            let credit = boost.carryover_credit(timestamp);
-            write_credit(sender, credit);
-            boost.status = BoostStatus::CarriedOver;
-            campaign.boost = Some(boost);
-        }
 
         log(CampaignDeniedEvent {
             asset_id,
@@ -787,10 +763,5 @@ impl Launchpad for Contract {
     #[storage(read, write), payable]
     fn boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
         _boost_campaign(asset_id, burn_amount)
-    }
-
-    #[storage(read)]
-    fn get_creator_boost_credit(creator: Identity) -> u64 {
-        read_credit(creator)
     }
 }
