@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/StoreProvider'
 import { useConnect, useConnectUI, useIsConnected } from '@fuels/react'
-import { useContracts } from '../hooks/useContracts'
+import { useContracts, getContractIds } from '../hooks/useContracts'
 import { useWallet } from '@fuels/react'
-import { getContracts } from '../config/contracts.ts'
 
 import { Button } from './Button'
 import { ProfilePopup } from './ProfilePopup'
@@ -22,7 +21,6 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
   const { connect } = useConnectUI()
   const { isConnected, refetch } = useIsConnected()
   const { wallet } = useWallet()
-  const ids = getContracts()
   const contracts  = useContracts()
   const launchpadContract = contracts?.launchpad
   const [fuelContract, setFuelContract] = useState(null)
@@ -32,7 +30,7 @@ export function Header({ title = 'Cinder', showCreate = false, showBalance = fal
 
     (async () => {
       if (!launchpadContract) return;
-      const ids = await getContracts();
+      const ids = await getContractIds();
       if (cancelled || !ids?.FUEL) return;
       setFuelContract(new Fuel(ids.FUEL, launchpadContract.account));
     })();
