@@ -6,8 +6,8 @@
 
 /*
   Fuels version: 0.102.0
-  Forc version: 0.70.1
-  Fuel-Core version: 0.46.0
+  Forc version: 0.70.2
+  Fuel-Core version: 0.47.1
 */
 
 import { Contract as __Contract, Interface } from "fuels";
@@ -27,6 +27,8 @@ import type {
 
 import type { Option, Enum, Vec } from "./common";
 
+export enum BoostStatusInput { Active = 'Active', Expired = 'Expired', CarriedOver = 'CarriedOver' };
+export enum BoostStatusOutput { Active = 'Active', Expired = 'Expired', CarriedOver = 'CarriedOver' };
 export enum CampaignStatusInput { Active = 'Active', Launched = 'Launched', Denied = 'Denied', Migrated = 'Migrated' };
 export enum CampaignStatusOutput { Active = 'Active', Launched = 'Launched', Denied = 'Denied', Migrated = 'Migrated' };
 export type IdentityInput = Enum<{ Address: AddressInput, ContractId: ContractIdInput }>;
@@ -42,18 +44,24 @@ export type AssetIdInput = { bits: string };
 export type AssetIdOutput = AssetIdInput;
 export type BondingCurveInput = { sold_supply: BigNumberish, max_supply: BigNumberish, base_price: BigNumberish, slope: BigNumberish };
 export type BondingCurveOutput = { sold_supply: BN, max_supply: BN, base_price: BN, slope: BN };
+export type BoostInput = { burn_amount: BigNumberish, burned_at: BigNumberish, boost_power_x1e6: BigNumberish, duration_secs: BigNumberish, ends_at: BigNumberish, status: BoostStatusInput };
+export type BoostOutput = { burn_amount: BN, burned_at: BN, boost_power_x1e6: BN, duration_secs: BN, ends_at: BN, status: BoostStatusOutput };
+export type BoostEventInput = { asset_id: AssetIdInput, creator: IdentityInput, burn_amount: BigNumberish, burned_at: BigNumberish, boost_power_x1e6: BigNumberish, duration_secs: BigNumberish, ends_at: BigNumberish };
+export type BoostEventOutput = { asset_id: AssetIdOutput, creator: IdentityOutput, burn_amount: BN, burned_at: BN, boost_power_x1e6: BN, duration_secs: BN, ends_at: BN };
 export type BurnEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish };
 export type BurnEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN };
-export type BuyEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish, cost: BigNumberish, sold_supply: BigNumberish };
-export type BuyEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN, cost: BN, sold_supply: BN };
-export type CampaignInput = { target: BigNumberish, creator: IdentityInput, status: CampaignStatusInput, token_id: AssetIdInput, sub_id: string, total_pledged: BigNumberish, total_supply: BigNumberish, curve: BondingCurveInput, amm_reserved: BigNumberish };
-export type CampaignOutput = { target: BN, creator: IdentityOutput, status: CampaignStatusOutput, token_id: AssetIdOutput, sub_id: string, total_pledged: BN, total_supply: BN, curve: BondingCurveOutput, amm_reserved: BN };
+export type BuyEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish, cost: BigNumberish, sold_supply: BigNumberish, curve_reserve: BigNumberish };
+export type BuyEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN, cost: BN, sold_supply: BN, curve_reserve: BN };
+export type CampaignInput = { target: BigNumberish, creator: IdentityInput, status: CampaignStatusInput, token_id: AssetIdInput, sub_id: string, total_pledged: BigNumberish, curve_reserve: BigNumberish, total_supply: BigNumberish, curve: BondingCurveInput, amm_reserved: BigNumberish, boost: Option<BoostInput> };
+export type CampaignOutput = { target: BN, creator: IdentityOutput, status: CampaignStatusOutput, token_id: AssetIdOutput, sub_id: string, total_pledged: BN, curve_reserve: BN, total_supply: BN, curve: BondingCurveOutput, amm_reserved: BN, boost: Option<BoostOutput> };
 export type CampaignCreatedEventInput = { asset_id: AssetIdInput, creator: IdentityInput, sub_id: string, target: BigNumberish, token_info: TokenInfoInput };
 export type CampaignCreatedEventOutput = { asset_id: AssetIdOutput, creator: IdentityOutput, sub_id: string, target: BN, token_info: TokenInfoOutput };
 export type CampaignDeniedEventInput = { asset_id: AssetIdInput, sender: IdentityInput };
 export type CampaignDeniedEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput };
-export type CampaignLaunchedEventInput = { asset_id: AssetIdInput, sender: IdentityInput, users_share: BigNumberish, remaining_supply: BigNumberish, amm_supply: BigNumberish, base_price: BigNumberish, slope: BigNumberish, max_supply: BigNumberish };
-export type CampaignLaunchedEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, users_share: BN, remaining_supply: BN, amm_supply: BN, base_price: BN, slope: BN, max_supply: BN };
+export type CampaignLaunchedEventInput = { asset_id: AssetIdInput, sender: IdentityInput, users_share: BigNumberish, remaining_supply: BigNumberish, amm_supply: BigNumberish, base_price: BigNumberish, slope: BigNumberish, max_supply: BigNumberish, curve_reserve: BigNumberish };
+export type CampaignLaunchedEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, users_share: BN, remaining_supply: BN, amm_supply: BN, base_price: BN, slope: BN, max_supply: BN, curve_reserve: BN };
+export type CampaignMigratedEventInput = { asset_id: AssetIdInput, sender: IdentityInput, base_reserve: BigNumberish, token_reserve: BigNumberish };
+export type CampaignMigratedEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, base_reserve: BN, token_reserve: BN };
 export type ClaimEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish };
 export type ClaimEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN };
 export type ContractIdInput = { bits: string };
@@ -62,8 +70,8 @@ export type MintEventInput = { asset_id: AssetIdInput, recipient: IdentityInput,
 export type MintEventOutput = { asset_id: AssetIdOutput, recipient: IdentityOutput, amount: BN };
 export type PledgedEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish, total_pledged: BigNumberish };
 export type PledgedEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN, total_pledged: BN };
-export type SellEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish, payout: BigNumberish, sold_supply: BigNumberish };
-export type SellEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN, payout: BN, sold_supply: BN };
+export type SellEventInput = { asset_id: AssetIdInput, sender: IdentityInput, amount: BigNumberish, payout: BigNumberish, sold_supply: BigNumberish, curve_reserve: BigNumberish };
+export type SellEventOutput = { asset_id: AssetIdOutput, sender: IdentityOutput, amount: BN, payout: BN, sold_supply: BN, curve_reserve: BN };
 export type TokenInfoInput = { asset_id: AssetIdInput, name: StdString, ticker: StdString, description: StdString, decimals: BigNumberish, image: StdString };
 export type TokenInfoOutput = { asset_id: AssetIdOutput, name: StdString, ticker: StdString, description: StdString, decimals: number, image: StdString };
 export type TotalSupplyEventInput = { asset: AssetIdInput, supply: BigNumberish, sender: IdentityInput };
@@ -74,6 +82,7 @@ export type LaunchpadConfigurables = Partial<{
   MIGRATION_TARGET: BigNumberish;
   INITIAL_SUPPLY: BigNumberish;
   PLEDGE_ASSET_ID: string;
+  CINDER_CONTRACT_ID: string;
   CURVE_SUPPLY_PERCENT: BigNumberish;
   INSTANT_LAUNCH_THRESHOLD_PERCENT: BigNumberish;
 }>;
@@ -155,69 +164,79 @@ const abi = {
       "concreteTypeId": "8c25cb3686462e9a86d2883c5688a22fe738b0bbc85f458d2d2b5f3f667c6d5a"
     },
     {
+      "type": "struct events::BoostEvent",
+      "concreteTypeId": "3989ee6e042536dbac32c200663b0bd6cda515defc13ed81aa69353f6baeca85",
+      "metadataTypeId": 8
+    },
+    {
       "type": "struct events::BurnEvent",
       "concreteTypeId": "af82480fdd08f1950b75df893648ba1dbee413c616d09755dd8497b582debf45",
-      "metadataTypeId": 7
+      "metadataTypeId": 9
     },
     {
       "type": "struct events::BuyEvent",
       "concreteTypeId": "e5d3acecd2b71db2d42a1508d1d48ac751330f307d256d8894db211c23c2815a",
-      "metadataTypeId": 8
+      "metadataTypeId": 10
     },
     {
       "type": "struct events::CampaignCreatedEvent",
       "concreteTypeId": "196902c92896561f95e35839c11957d4cb69848d385eeaa86515cbe22afbb812",
-      "metadataTypeId": 9
+      "metadataTypeId": 11
     },
     {
       "type": "struct events::CampaignDeniedEvent",
       "concreteTypeId": "b42351897d1274ab71a60107e31cb47598682fd90b67ebbe30621865d682e663",
-      "metadataTypeId": 10
+      "metadataTypeId": 12
     },
     {
       "type": "struct events::CampaignLaunchedEvent",
       "concreteTypeId": "c29fbe9ca18df251d732cb4f8397ab2231c817747dff2afc2a358bbc32e58f58",
-      "metadataTypeId": 11
+      "metadataTypeId": 13
+    },
+    {
+      "type": "struct events::CampaignMigratedEvent",
+      "concreteTypeId": "8ca6b4f806eb1c543ebf8eee584c084e5c03610af9212ccdad2eaad1bb3e0db1",
+      "metadataTypeId": 14
     },
     {
       "type": "struct events::ClaimEvent",
       "concreteTypeId": "1fa0c6da5fd6fd691795bd27aadcc15cdc0280686eab924a3884591d8d82eeab",
-      "metadataTypeId": 12
+      "metadataTypeId": 15
     },
     {
       "type": "struct events::MintEvent",
       "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12",
-      "metadataTypeId": 13
+      "metadataTypeId": 16
     },
     {
       "type": "struct events::PledgedEvent",
       "concreteTypeId": "efc3ff2962ac53b0d658fef7024d9b9df649f77a5e512c743f6451d648f60ab9",
-      "metadataTypeId": 14
+      "metadataTypeId": 17
     },
     {
       "type": "struct events::SellEvent",
       "concreteTypeId": "78df0c9c7f494f8f480f4abfe69400be9d2bcefc0bcf14dcb1db1cae9c6e39b2",
-      "metadataTypeId": 15
+      "metadataTypeId": 18
     },
     {
       "type": "struct src20::TotalSupplyEvent",
       "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba",
-      "metadataTypeId": 16
+      "metadataTypeId": 19
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 18
+      "metadataTypeId": 21
     },
     {
       "type": "struct std::string::String",
       "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c",
-      "metadataTypeId": 22
+      "metadataTypeId": 25
     },
     {
       "type": "struct std::vec::Vec<struct types::campaign::Campaign>",
       "concreteTypeId": "1ec264705714a469ba386512879d87a6060a454b1b43d1d9228a7bfb38020abf",
-      "metadataTypeId": 24,
+      "metadataTypeId": 27,
       "typeArguments": [
         "25508f36b510e4caaa34f13132d8c5890fee213dfdc93c792b52274402720f89"
       ]
@@ -225,20 +244,25 @@ const abi = {
     {
       "type": "struct std::vec::Vec<struct types::structs::TokenInfo>",
       "concreteTypeId": "cea4b27422ef9bec713c723d02ee6ed5be55227cbfb2561b416abde46eb1eac6",
-      "metadataTypeId": 24,
+      "metadataTypeId": 27,
       "typeArguments": [
         "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d"
       ]
     },
     {
+      "type": "struct types::boost::Boost",
+      "concreteTypeId": "845c7769623abe578bf7e06ec5a3bb12afa0948706bc29a9ddff13a43e13dd54",
+      "metadataTypeId": 29
+    },
+    {
       "type": "struct types::campaign::Campaign",
       "concreteTypeId": "25508f36b510e4caaa34f13132d8c5890fee213dfdc93c792b52274402720f89",
-      "metadataTypeId": 26
+      "metadataTypeId": 30
     },
     {
       "type": "struct types::structs::TokenInfo",
       "concreteTypeId": "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d",
-      "metadataTypeId": 27
+      "metadataTypeId": 31
     },
     {
       "type": "u64",
@@ -278,7 +302,7 @@ const abi = {
         },
         {
           "name": "Bytes",
-          "typeId": 19
+          "typeId": 22
         },
         {
           "name": "Int",
@@ -286,7 +310,7 @@ const abi = {
         },
         {
           "name": "String",
-          "typeId": 22
+          "typeId": 25
         }
       ]
     },
@@ -296,11 +320,11 @@ const abi = {
       "components": [
         {
           "name": "Address",
-          "typeId": 17
+          "typeId": 20
         },
         {
           "name": "ContractId",
-          "typeId": 21
+          "typeId": 24
         }
       ]
     },
@@ -314,16 +338,34 @@ const abi = {
         },
         {
           "name": "Some",
-          "typeId": 5
+          "typeId": 6
         }
       ],
       "typeParameters": [
-        5
+        6
+      ]
+    },
+    {
+      "type": "enum types::boost::BoostStatus",
+      "metadataTypeId": 4,
+      "components": [
+        {
+          "name": "Active",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Expired",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "CarriedOver",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
       ]
     },
     {
       "type": "enum types::campaign::CampaignStatus",
-      "metadataTypeId": 4,
+      "metadataTypeId": 5,
       "components": [
         {
           "name": "Active",
@@ -345,19 +387,53 @@ const abi = {
     },
     {
       "type": "generic T",
-      "metadataTypeId": 5
-    },
-    {
-      "type": "raw untyped ptr",
       "metadataTypeId": 6
     },
     {
-      "type": "struct events::BurnEvent",
-      "metadataTypeId": 7,
+      "type": "raw untyped ptr",
+      "metadataTypeId": 7
+    },
+    {
+      "type": "struct events::BoostEvent",
+      "metadataTypeId": 8,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
+        },
+        {
+          "name": "creator",
+          "typeId": 2
+        },
+        {
+          "name": "burn_amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "burned_at",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "boost_power_x1e6",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "duration_secs",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "ends_at",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::BurnEvent",
+      "metadataTypeId": 9,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -371,11 +447,11 @@ const abi = {
     },
     {
       "type": "struct events::BuyEvent",
-      "metadataTypeId": 8,
+      "metadataTypeId": 10,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -392,16 +468,20 @@ const abi = {
         {
           "name": "sold_supply",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "curve_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },
     {
       "type": "struct events::CampaignCreatedEvent",
-      "metadataTypeId": 9,
+      "metadataTypeId": 11,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "creator",
@@ -417,17 +497,17 @@ const abi = {
         },
         {
           "name": "token_info",
-          "typeId": 27
+          "typeId": 31
         }
       ]
     },
     {
       "type": "struct events::CampaignDeniedEvent",
-      "metadataTypeId": 10,
+      "metadataTypeId": 12,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -437,11 +517,11 @@ const abi = {
     },
     {
       "type": "struct events::CampaignLaunchedEvent",
-      "metadataTypeId": 11,
+      "metadataTypeId": 13,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -470,16 +550,42 @@ const abi = {
         {
           "name": "max_supply",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "curve_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::CampaignMigratedEvent",
+      "metadataTypeId": 14,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 21
+        },
+        {
+          "name": "sender",
+          "typeId": 2
+        },
+        {
+          "name": "base_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "token_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },
     {
       "type": "struct events::ClaimEvent",
-      "metadataTypeId": 12,
+      "metadataTypeId": 15,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -493,11 +599,11 @@ const abi = {
     },
     {
       "type": "struct events::MintEvent",
-      "metadataTypeId": 13,
+      "metadataTypeId": 16,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "recipient",
@@ -511,11 +617,11 @@ const abi = {
     },
     {
       "type": "struct events::PledgedEvent",
-      "metadataTypeId": 14,
+      "metadataTypeId": 17,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -533,11 +639,11 @@ const abi = {
     },
     {
       "type": "struct events::SellEvent",
-      "metadataTypeId": 15,
+      "metadataTypeId": 18,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sender",
@@ -554,16 +660,20 @@ const abi = {
         {
           "name": "sold_supply",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "curve_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },
     {
       "type": "struct src20::TotalSupplyEvent",
-      "metadataTypeId": 16,
+      "metadataTypeId": 19,
       "components": [
         {
           "name": "asset",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "supply",
@@ -577,7 +687,7 @@ const abi = {
     },
     {
       "type": "struct std::address::Address",
-      "metadataTypeId": 17,
+      "metadataTypeId": 20,
       "components": [
         {
           "name": "bits",
@@ -587,44 +697,6 @@ const abi = {
     },
     {
       "type": "struct std::asset_id::AssetId",
-      "metadataTypeId": 18,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        }
-      ]
-    },
-    {
-      "type": "struct std::bytes::Bytes",
-      "metadataTypeId": 19,
-      "components": [
-        {
-          "name": "buf",
-          "typeId": 20
-        },
-        {
-          "name": "len",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ]
-    },
-    {
-      "type": "struct std::bytes::RawBytes",
-      "metadataTypeId": 20,
-      "components": [
-        {
-          "name": "ptr",
-          "typeId": 6
-        },
-        {
-          "name": "cap",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ]
-    },
-    {
-      "type": "struct std::contract_id::ContractId",
       "metadataTypeId": 21,
       "components": [
         {
@@ -634,22 +706,60 @@ const abi = {
       ]
     },
     {
-      "type": "struct std::string::String",
+      "type": "struct std::bytes::Bytes",
       "metadataTypeId": 22,
       "components": [
         {
+          "name": "buf",
+          "typeId": 23
+        },
+        {
+          "name": "len",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct std::bytes::RawBytes",
+      "metadataTypeId": 23,
+      "components": [
+        {
+          "name": "ptr",
+          "typeId": 7
+        },
+        {
+          "name": "cap",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct std::contract_id::ContractId",
+      "metadataTypeId": 24,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::string::String",
+      "metadataTypeId": 25,
+      "components": [
+        {
           "name": "bytes",
-          "typeId": 19
+          "typeId": 22
         }
       ]
     },
     {
       "type": "struct std::vec::RawVec",
-      "metadataTypeId": 23,
+      "metadataTypeId": 26,
       "components": [
         {
           "name": "ptr",
-          "typeId": 6
+          "typeId": 7
         },
         {
           "name": "cap",
@@ -657,20 +767,20 @@ const abi = {
         }
       ],
       "typeParameters": [
-        5
+        6
       ]
     },
     {
       "type": "struct std::vec::Vec",
-      "metadataTypeId": 24,
+      "metadataTypeId": 27,
       "components": [
         {
           "name": "buf",
-          "typeId": 23,
+          "typeId": 26,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 5
+              "typeId": 6
             }
           ]
         },
@@ -680,12 +790,12 @@ const abi = {
         }
       ],
       "typeParameters": [
-        5
+        6
       ]
     },
     {
       "type": "struct types::bonding::BondingCurve",
-      "metadataTypeId": 25,
+      "metadataTypeId": 28,
       "components": [
         {
           "name": "sold_supply",
@@ -706,8 +816,38 @@ const abi = {
       ]
     },
     {
+      "type": "struct types::boost::Boost",
+      "metadataTypeId": 29,
+      "components": [
+        {
+          "name": "burn_amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "burned_at",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "boost_power_x1e6",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "duration_secs",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "ends_at",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "status",
+          "typeId": 4
+        }
+      ]
+    },
+    {
       "type": "struct types::campaign::Campaign",
-      "metadataTypeId": 26,
+      "metadataTypeId": 30,
       "components": [
         {
           "name": "target",
@@ -719,11 +859,11 @@ const abi = {
         },
         {
           "name": "status",
-          "typeId": 4
+          "typeId": 5
         },
         {
           "name": "token_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "sub_id",
@@ -734,38 +874,52 @@ const abi = {
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         },
         {
+          "name": "curve_reserve",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
           "name": "total_supply",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         },
         {
           "name": "curve",
-          "typeId": 25
+          "typeId": 28
         },
         {
           "name": "amm_reserved",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "boost",
+          "typeId": 3,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 29
+            }
+          ]
         }
       ]
     },
     {
       "type": "struct types::structs::TokenInfo",
-      "metadataTypeId": 27,
+      "metadataTypeId": 31,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 18
+          "typeId": 21
         },
         {
           "name": "name",
-          "typeId": 22
+          "typeId": 25
         },
         {
           "name": "ticker",
-          "typeId": 22
+          "typeId": 25
         },
         {
           "name": "description",
-          "typeId": 22
+          "typeId": 25
         },
         {
           "name": "decimals",
@@ -773,7 +927,7 @@ const abi = {
         },
         {
           "name": "image",
-          "typeId": 22
+          "typeId": 25
         }
       ]
     }
@@ -900,6 +1054,87 @@ const abi = {
       ]
     },
     {
+      "name": "burn",
+      "inputs": [
+        {
+          "name": "sub_id",
+          "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        }
+      ]
+    },
+    {
+      "name": "mint",
+      "inputs": [
+        {
+          "name": "recipient",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "sub_id",
+          "concreteTypeId": "0c2beb9013490c4f753f2757dfe2d8340b22ce3827d596d81d249b7038033cb6"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "boost_campaign",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "burn_amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "845c7769623abe578bf7e06ec5a3bb12afa0948706bc29a9ddff13a43e13dd54",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        }
+      ]
+    },
+    {
       "name": "buy",
       "inputs": [
         {
@@ -989,6 +1224,10 @@ const abi = {
           ]
         },
         {
+          "name": "payable",
+          "arguments": []
+        },
+        {
           "name": "doc-comment",
           "arguments": [
             " Creates a new campaign and initializes its metadata."
@@ -1020,13 +1259,9 @@ const abi = {
           ]
         },
         {
-          "name": "payable",
-          "arguments": []
-        },
-        {
           "name": "doc-comment",
           "arguments": [
-            " Denies an active campaign and refunds all pledges."
+            " yies an active campaign and refunds all pledges."
           ]
         },
         {
@@ -1126,6 +1361,24 @@ const abi = {
           "name": "doc-comment",
           "arguments": [
             " Iterates storage.assets and collects Campaigns that exist."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "get_creator_boost_credit",
+      "inputs": [
+        {
+          "name": "creator",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
           ]
         }
       ]
@@ -1257,6 +1510,54 @@ const abi = {
       ]
     },
     {
+      "name": "migrate",
+      "inputs": [
+        {
+          "name": "asset_id",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Migrates a token to Reactor DEX"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mint_cinder",
+      "inputs": [
+        {
+          "name": "recipient",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
       "name": "pledge",
       "inputs": [
         {
@@ -1332,14 +1633,6 @@ const abi = {
         {
           "name": "asset_id",
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
-        },
-        {
-          "name": "amount",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        },
-        {
-          "name": "min_payout",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
@@ -1364,7 +1657,7 @@ const abi = {
         {
           "name": "doc-comment",
           "arguments": [
-            " Caller must send token amount; returns payout in base asset."
+            " Caller sends token amount via msg_amount; receives payout in pledge asset."
           ]
         }
       ]
@@ -1375,60 +1668,6 @@ const abi = {
         {
           "name": "owner",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        }
-      ],
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "read",
-            "write"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "burn",
-      "inputs": [
-        {
-          "name": "sub_id",
-          "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "amount",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ],
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "read",
-            "write"
-          ]
-        },
-        {
-          "name": "payable",
-          "arguments": []
-        }
-      ]
-    },
-    {
-      "name": "mint",
-      "inputs": [
-        {
-          "name": "recipient",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        },
-        {
-          "name": "sub_id",
-          "concreteTypeId": "0c2beb9013490c4f753f2757dfe2d8340b22ce3827d596d81d249b7038033cb6"
-        },
-        {
-          "name": "amount",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
@@ -1453,30 +1692,6 @@ const abi = {
       "concreteTypeId": "e5d3acecd2b71db2d42a1508d1d48ac751330f307d256d8894db211c23c2815a"
     },
     {
-      "logId": "2279040052662566249",
-      "concreteTypeId": "1fa0c6da5fd6fd691795bd27aadcc15cdc0280686eab924a3884591d8d82eeab"
-    },
-    {
-      "logId": "1830997786495440415",
-      "concreteTypeId": "196902c92896561f95e35839c11957d4cb69848d385eeaa86515cbe22afbb812"
-    },
-    {
-      "logId": "12980308201962632363",
-      "concreteTypeId": "b42351897d1274ab71a60107e31cb47598682fd90b67ebbe30621865d682e663"
-    },
-    {
-      "logId": "14024137344589623889",
-      "concreteTypeId": "c29fbe9ca18df251d732cb4f8397ab2231c817747dff2afc2a358bbc32e58f58"
-    },
-    {
-      "logId": "17276933148737557424",
-      "concreteTypeId": "efc3ff2962ac53b0d658fef7024d9b9df649f77a5e512c743f6451d648f60ab9"
-    },
-    {
-      "logId": "8709694070647771023",
-      "concreteTypeId": "78df0c9c7f494f8f480f4abfe69400be9d2bcefc0bcf14dcb1db1cae9c6e39b2"
-    },
-    {
       "logId": "8807078256608655330",
       "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba"
     },
@@ -1487,6 +1702,38 @@ const abi = {
     {
       "logId": "10159620282815190840",
       "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12"
+    },
+    {
+      "logId": "8709694070647771023",
+      "concreteTypeId": "78df0c9c7f494f8f480f4abfe69400be9d2bcefc0bcf14dcb1db1cae9c6e39b2"
+    },
+    {
+      "logId": "2279040052662566249",
+      "concreteTypeId": "1fa0c6da5fd6fd691795bd27aadcc15cdc0280686eab924a3884591d8d82eeab"
+    },
+    {
+      "logId": "14024137344589623889",
+      "concreteTypeId": "c29fbe9ca18df251d732cb4f8397ab2231c817747dff2afc2a358bbc32e58f58"
+    },
+    {
+      "logId": "17276933148737557424",
+      "concreteTypeId": "efc3ff2962ac53b0d658fef7024d9b9df649f77a5e512c743f6451d648f60ab9"
+    },
+    {
+      "logId": "10134986988804840532",
+      "concreteTypeId": "8ca6b4f806eb1c543ebf8eee584c084e5c03610af9212ccdad2eaad1bb3e0db1"
+    },
+    {
+      "logId": "12980308201962632363",
+      "concreteTypeId": "b42351897d1274ab71a60107e31cb47598682fd90b67ebbe30621865d682e663"
+    },
+    {
+      "logId": "4146107088254613211",
+      "concreteTypeId": "3989ee6e042536dbac32c200663b0bd6cda515defc13ed81aa69353f6baeca85"
+    },
+    {
+      "logId": "1830997786495440415",
+      "concreteTypeId": "196902c92896561f95e35839c11957d4cb69848d385eeaa86515cbe22afbb812"
     }
   ],
   "messagesTypes": [],
@@ -1494,37 +1741,43 @@ const abi = {
     {
       "name": "DEFAULT_DECIMALS",
       "concreteTypeId": "c89951a24c6ca28c13fd1cfdc646b2b656d69e61a92b91023be7eb58eb914b6b",
-      "offset": 82240,
+      "offset": 104000,
       "indirect": false
     },
     {
       "name": "MIGRATION_TARGET",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 82264,
+      "offset": 104024,
       "indirect": false
     },
     {
       "name": "INITIAL_SUPPLY",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 82248,
+      "offset": 104008,
       "indirect": false
     },
     {
       "name": "PLEDGE_ASSET_ID",
       "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
-      "offset": 82272,
+      "offset": 104032,
+      "indirect": false
+    },
+    {
+      "name": "CINDER_CONTRACT_ID",
+      "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
+      "offset": 103960,
       "indirect": false
     },
     {
       "name": "CURVE_SUPPLY_PERCENT",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 82232,
+      "offset": 103992,
       "indirect": false
     },
     {
       "name": "INSTANT_LAUNCH_THRESHOLD_PERCENT",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 82256,
+      "offset": 104016,
       "indirect": false
     }
   ],
@@ -1560,6 +1813,9 @@ export class LaunchpadInterface extends Interface {
     total_assets: FunctionFragment;
     total_supply: FunctionFragment;
     metadata: FunctionFragment;
+    burn: FunctionFragment;
+    mint: FunctionFragment;
+    boost_campaign: FunctionFragment;
     buy: FunctionFragment;
     claim: FunctionFragment;
     create_campaign: FunctionFragment;
@@ -1568,17 +1824,18 @@ export class LaunchpadInterface extends Interface {
     get_campaign: FunctionFragment;
     get_campaign_counter: FunctionFragment;
     get_campaigns: FunctionFragment;
+    get_creator_boost_credit: FunctionFragment;
     get_pledge: FunctionFragment;
     get_token_info: FunctionFragment;
     get_total_pledged: FunctionFragment;
     initialize: FunctionFragment;
     launch_campaign: FunctionFragment;
+    migrate: FunctionFragment;
+    mint_cinder: FunctionFragment;
     pledge: FunctionFragment;
     refund_pledge: FunctionFragment;
     sell: FunctionFragment;
     set_owner: FunctionFragment;
-    burn: FunctionFragment;
-    mint: FunctionFragment;
   };
 }
 
@@ -1595,6 +1852,9 @@ export class Launchpad extends __Contract {
     total_assets: InvokeFunction<[], BN>;
     total_supply: InvokeFunction<[asset: AssetIdInput], Option<BN>>;
     metadata: InvokeFunction<[asset: AssetIdInput, key: StdString], Option<MetadataOutput>>;
+    burn: InvokeFunction<[sub_id: string, amount: BigNumberish], void>;
+    mint: InvokeFunction<[recipient: IdentityInput, sub_id: Option<string>, amount: BigNumberish], void>;
+    boost_campaign: InvokeFunction<[asset_id: AssetIdInput, burn_amount: BigNumberish], BoostOutput>;
     buy: InvokeFunction<[asset_id: AssetIdInput], BN>;
     claim: InvokeFunction<[asset_id: AssetIdInput], boolean>;
     create_campaign: InvokeFunction<[name: StdString, ticker: StdString, description: StdString, image: StdString], AssetIdOutput>;
@@ -1603,17 +1863,18 @@ export class Launchpad extends __Contract {
     get_campaign: InvokeFunction<[asset_id: AssetIdInput], CampaignOutput>;
     get_campaign_counter: InvokeFunction<[], BN>;
     get_campaigns: InvokeFunction<[], Vec<CampaignOutput>>;
+    get_creator_boost_credit: InvokeFunction<[creator: IdentityInput], BN>;
     get_pledge: InvokeFunction<[asset_id: AssetIdInput, sender: IdentityInput], BN>;
     get_token_info: InvokeFunction<[asset_id: AssetIdInput], TokenInfoOutput>;
     get_total_pledged: InvokeFunction<[asset_id: AssetIdInput], BN>;
     initialize: InvokeFunction<[owner: IdentityInput], void>;
     launch_campaign: InvokeFunction<[asset_id: AssetIdInput], boolean>;
+    migrate: InvokeFunction<[asset_id: AssetIdInput], boolean>;
+    mint_cinder: InvokeFunction<[recipient: IdentityInput, amount: BigNumberish], boolean>;
     pledge: InvokeFunction<[asset_id: AssetIdInput, amount: BigNumberish], boolean>;
     refund_pledge: InvokeFunction<[asset_id: AssetIdInput], boolean>;
-    sell: InvokeFunction<[asset_id: AssetIdInput, amount: BigNumberish, min_payout: BigNumberish], BN>;
+    sell: InvokeFunction<[asset_id: AssetIdInput], BN>;
     set_owner: InvokeFunction<[owner: IdentityInput], void>;
-    burn: InvokeFunction<[sub_id: string, amount: BigNumberish], void>;
-    mint: InvokeFunction<[recipient: IdentityInput, sub_id: Option<string>, amount: BigNumberish], void>;
   };
 
   constructor(

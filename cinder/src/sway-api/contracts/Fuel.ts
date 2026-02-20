@@ -6,8 +6,8 @@
 
 /*
   Fuels version: 0.102.0
-  Forc version: 0.70.1
-  Fuel-Core version: 0.46.0
+  Forc version: 0.70.2
+  Fuel-Core version: 0.47.1
 */
 
 import { Contract as __Contract, Interface } from "fuels";
@@ -103,10 +103,6 @@ const abi = {
     {
       "type": "str",
       "concreteTypeId": "8c25cb3686462e9a86d2883c5688a22fe738b0bbc85f458d2d2b5f3f667c6d5a"
-    },
-    {
-      "type": "str[4]",
-      "concreteTypeId": "94f0fa95c830be5e4f711963e83259fe7e8bc723278ab6ec34449e791a99b53a"
     },
     {
       "type": "str[5]",
@@ -479,20 +475,20 @@ const abi = {
   "configurables": [
     {
       "name": "NAME",
-      "concreteTypeId": "94f0fa95c830be5e4f711963e83259fe7e8bc723278ab6ec34449e791a99b53a",
-      "offset": 26648,
+      "concreteTypeId": "84877f6e98274b9e4721db68b4c0bdb9e52b8e9572c5bd7811c07a41ced882c7",
+      "offset": 26616,
       "indirect": false
     },
     {
       "name": "SYMBOL",
       "concreteTypeId": "84877f6e98274b9e4721db68b4c0bdb9e52b8e9572c5bd7811c07a41ced882c7",
-      "offset": 26656,
+      "offset": 26624,
       "indirect": false
     },
     {
       "name": "DECIMALS",
       "concreteTypeId": "c89951a24c6ca28c13fd1cfdc646b2b656d69e61a92b91023be7eb58eb914b6b",
-      "offset": 26640,
+      "offset": 26608,
       "indirect": false
     }
   ],

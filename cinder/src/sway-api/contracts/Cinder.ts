@@ -6,8 +6,8 @@
 
 /*
   Fuels version: 0.102.0
-  Forc version: 0.70.1
-  Fuel-Core version: 0.46.0
+  Forc version: 0.70.2
+  Fuel-Core version: 0.47.1
 */
 
 import { Contract as __Contract, Interface } from "fuels";
@@ -38,18 +38,20 @@ export type AddressInput = { bits: string };
 export type AddressOutput = AddressInput;
 export type AssetIdInput = { bits: string };
 export type AssetIdOutput = AssetIdInput;
+export type BurnEventInput = { sender: IdentityInput, amount: BigNumberish };
+export type BurnEventOutput = { sender: IdentityOutput, amount: BN };
 export type ContractIdInput = { bits: string };
 export type ContractIdOutput = ContractIdInput;
 export type InitializeEventInput = { owner: IdentityInput };
 export type InitializeEventOutput = { owner: IdentityOutput };
+export type MintEventInput = { recipient: IdentityInput, amount: BigNumberish };
+export type MintEventOutput = { recipient: IdentityOutput, amount: BN };
 export type SetImageEventInput = { asset: AssetIdInput, symbol: Option<StdString>, sender: IdentityInput };
 export type SetImageEventOutput = { asset: AssetIdOutput, symbol: Option<StdString>, sender: IdentityOutput };
 export type SetOwnerEventInput = { owner: IdentityInput };
 export type SetOwnerEventOutput = { owner: IdentityOutput };
 export type TokenInfoInput = { asset_id: AssetIdInput, name: StdString, ticker: StdString, description: StdString, decimals: BigNumberish, image: StdString };
 export type TokenInfoOutput = { asset_id: AssetIdOutput, name: StdString, ticker: StdString, description: StdString, decimals: number, image: StdString };
-export type TotalSupplyEventInput = { asset: AssetIdInput, supply: BigNumberish, sender: IdentityInput };
-export type TotalSupplyEventOutput = { asset: AssetIdOutput, supply: BN, sender: IdentityOutput };
 
 export type CinderConfigurables = Partial<{
   MAX_SUPPLY: BigNumberish;
@@ -70,6 +72,10 @@ const abi = {
     {
       "type": "b256",
       "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+    },
+    {
+      "type": "bool",
+      "concreteTypeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
     },
     {
       "type": "enum src5::State",
@@ -139,39 +145,44 @@ const abi = {
       "concreteTypeId": "ed705f920eb2c423c81df912430030def10f03218f0a064bfab81b68de71ae21"
     },
     {
+      "type": "struct events::BurnEvent",
+      "concreteTypeId": "af82480fdd08f1950b75df893648ba1dbee413c616d09755dd8497b582debf45",
+      "metadataTypeId": 6
+    },
+    {
       "type": "struct events::InitializeEvent",
       "concreteTypeId": "9185a6821d0b165ad35c9be4d80386c8a1bfc06c8aa55ed3322058b8929f87fa",
-      "metadataTypeId": 6
+      "metadataTypeId": 7
+    },
+    {
+      "type": "struct events::MintEvent",
+      "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12",
+      "metadataTypeId": 8
     },
     {
       "type": "struct events::SetImageEvent",
       "concreteTypeId": "c2414cb9c7c04ee653147728497cef05ad5bba10d0d5e706d24823d9b50c234c",
-      "metadataTypeId": 7
+      "metadataTypeId": 9
     },
     {
       "type": "struct events::SetOwnerEvent",
       "concreteTypeId": "1252fd3e5f11091044f7bbea3a7f7f4ac021c97764e87490ceda83ab342103ff",
-      "metadataTypeId": 8
-    },
-    {
-      "type": "struct src20::TotalSupplyEvent",
-      "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba",
-      "metadataTypeId": 9
+      "metadataTypeId": 10
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 11
+      "metadataTypeId": 12
     },
     {
       "type": "struct std::string::String",
       "concreteTypeId": "9a7f1d3e963c10e0a4ea70a8e20a4813d1dc5682e28f74cb102ae50d32f7f98c",
-      "metadataTypeId": 15
+      "metadataTypeId": 16
     },
     {
       "type": "struct types::structs::TokenInfo",
       "concreteTypeId": "83db1f185e1891658bd68a188647e181b3e4191463f62ff09c2c8fec8767b88d",
-      "metadataTypeId": 16
+      "metadataTypeId": 17
     },
     {
       "type": "u64",
@@ -211,7 +222,7 @@ const abi = {
         },
         {
           "name": "Bytes",
-          "typeId": 12
+          "typeId": 13
         },
         {
           "name": "Int",
@@ -219,7 +230,7 @@ const abi = {
         },
         {
           "name": "String",
-          "typeId": 15
+          "typeId": 16
         }
       ]
     },
@@ -229,11 +240,11 @@ const abi = {
       "components": [
         {
           "name": "Address",
-          "typeId": 10
+          "typeId": 11
         },
         {
           "name": "ContractId",
-          "typeId": 14
+          "typeId": 15
         }
       ]
     },
@@ -263,8 +274,22 @@ const abi = {
       "metadataTypeId": 5
     },
     {
-      "type": "struct events::InitializeEvent",
+      "type": "struct events::BurnEvent",
       "metadataTypeId": 6,
+      "components": [
+        {
+          "name": "sender",
+          "typeId": 2
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
+      "type": "struct events::InitializeEvent",
+      "metadataTypeId": 7,
       "components": [
         {
           "name": "owner",
@@ -273,12 +298,26 @@ const abi = {
       ]
     },
     {
+      "type": "struct events::MintEvent",
+      "metadataTypeId": 8,
+      "components": [
+        {
+          "name": "recipient",
+          "typeId": 2
+        },
+        {
+          "name": "amount",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ]
+    },
+    {
       "type": "struct events::SetImageEvent",
-      "metadataTypeId": 7,
+      "metadataTypeId": 9,
       "components": [
         {
           "name": "asset",
-          "typeId": 11
+          "typeId": 12
         },
         {
           "name": "symbol",
@@ -286,7 +325,7 @@ const abi = {
           "typeArguments": [
             {
               "name": "",
-              "typeId": 15
+              "typeId": 16
             }
           ]
         },
@@ -298,7 +337,7 @@ const abi = {
     },
     {
       "type": "struct events::SetOwnerEvent",
-      "metadataTypeId": 8,
+      "metadataTypeId": 10,
       "components": [
         {
           "name": "owner",
@@ -307,35 +346,7 @@ const abi = {
       ]
     },
     {
-      "type": "struct src20::TotalSupplyEvent",
-      "metadataTypeId": 9,
-      "components": [
-        {
-          "name": "asset",
-          "typeId": 11
-        },
-        {
-          "name": "supply",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        },
-        {
-          "name": "sender",
-          "typeId": 2
-        }
-      ]
-    },
-    {
       "type": "struct std::address::Address",
-      "metadataTypeId": 10,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        }
-      ]
-    },
-    {
-      "type": "struct std::asset_id::AssetId",
       "metadataTypeId": 11,
       "components": [
         {
@@ -345,12 +356,22 @@ const abi = {
       ]
     },
     {
-      "type": "struct std::bytes::Bytes",
+      "type": "struct std::asset_id::AssetId",
       "metadataTypeId": 12,
       "components": [
         {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::bytes::Bytes",
+      "metadataTypeId": 13,
+      "components": [
+        {
           "name": "buf",
-          "typeId": 13
+          "typeId": 14
         },
         {
           "name": "len",
@@ -360,7 +381,7 @@ const abi = {
     },
     {
       "type": "struct std::bytes::RawBytes",
-      "metadataTypeId": 13,
+      "metadataTypeId": 14,
       "components": [
         {
           "name": "ptr",
@@ -374,7 +395,7 @@ const abi = {
     },
     {
       "type": "struct std::contract_id::ContractId",
-      "metadataTypeId": 14,
+      "metadataTypeId": 15,
       "components": [
         {
           "name": "bits",
@@ -384,33 +405,33 @@ const abi = {
     },
     {
       "type": "struct std::string::String",
-      "metadataTypeId": 15,
+      "metadataTypeId": 16,
       "components": [
         {
           "name": "bytes",
-          "typeId": 12
+          "typeId": 13
         }
       ]
     },
     {
       "type": "struct types::structs::TokenInfo",
-      "metadataTypeId": 16,
+      "metadataTypeId": 17,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 11
+          "typeId": 12
         },
         {
           "name": "name",
-          "typeId": 15
+          "typeId": 16
         },
         {
           "name": "ticker",
-          "typeId": 15
+          "typeId": 16
         },
         {
           "name": "description",
-          "typeId": 15
+          "typeId": 16
         },
         {
           "name": "decimals",
@@ -418,7 +439,7 @@ const abi = {
         },
         {
           "name": "image",
-          "typeId": 15
+          "typeId": 16
         }
       ]
     }
@@ -617,11 +638,61 @@ const abi = {
       ]
     },
     {
+      "name": "burn_cinder",
+      "inputs": [
+        {
+          "name": "sender",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        },
+        {
+          "name": "payable",
+          "arguments": []
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "inputs": [
         {
           "name": "owner",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mint_cinder",
+      "inputs": [
+        {
+          "name": "recipient",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
@@ -680,12 +751,12 @@ const abi = {
       "concreteTypeId": "8c25cb3686462e9a86d2883c5688a22fe738b0bbc85f458d2d2b5f3f667c6d5a"
     },
     {
-      "logId": "8807078256608655330",
-      "concreteTypeId": "7a3907033239b7e20b602aaf2a1a55863934467688426a359aae8b410786d2ba"
+      "logId": "12646749936579834261",
+      "concreteTypeId": "af82480fdd08f1950b75df893648ba1dbee413c616d09755dd8497b582debf45"
     },
     {
-      "logId": "10485970385165293146",
-      "concreteTypeId": "9185a6821d0b165ad35c9be4d80386c8a1bfc06c8aa55ed3322058b8929f87fa"
+      "logId": "10159620282815190840",
+      "concreteTypeId": "8cfe38d1ba0d97380df81da6075bed5def90f5bde5e54647772963da050fde12"
     },
     {
       "logId": "13997553477648142054",
@@ -694,6 +765,10 @@ const abi = {
     {
       "logId": "1320396085097728272",
       "concreteTypeId": "1252fd3e5f11091044f7bbea3a7f7f4ac021c97764e87490ceda83ab342103ff"
+    },
+    {
+      "logId": "10485970385165293146",
+      "concreteTypeId": "9185a6821d0b165ad35c9be4d80386c8a1bfc06c8aa55ed3322058b8929f87fa"
     }
   ],
   "messagesTypes": [],
@@ -701,25 +776,25 @@ const abi = {
     {
       "name": "MAX_SUPPLY",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 33744,
+      "offset": 35544,
       "indirect": false
     },
     {
       "name": "DECIMALS",
       "concreteTypeId": "c89951a24c6ca28c13fd1cfdc646b2b656d69e61a92b91023be7eb58eb914b6b",
-      "offset": 33736,
+      "offset": 35536,
       "indirect": false
     },
     {
       "name": "NAME",
       "concreteTypeId": "ed705f920eb2c423c81df912430030def10f03218f0a064bfab81b68de71ae21",
-      "offset": 33752,
+      "offset": 35552,
       "indirect": false
     },
     {
       "name": "SYMBOL",
       "concreteTypeId": "0a92c8e0f509a2d3a66f68dd50408ce45a1a2596803b0bc983a69b34bd40dad2",
-      "offset": 33760,
+      "offset": 35560,
       "indirect": false
     }
   ],
@@ -762,7 +837,9 @@ export class CinderInterface extends Interface {
     burn: FunctionFragment;
     mint: FunctionFragment;
     asset_info: FunctionFragment;
+    burn_cinder: FunctionFragment;
     initialize: FunctionFragment;
+    mint_cinder: FunctionFragment;
     set_image: FunctionFragment;
     set_owner: FunctionFragment;
   };
@@ -784,7 +861,9 @@ export class Cinder extends __Contract {
     burn: InvokeFunction<[sub_id: string, amount: BigNumberish], void>;
     mint: InvokeFunction<[recipient: IdentityInput, sub_id: Option<string>, amount: BigNumberish], void>;
     asset_info: InvokeFunction<[asset: AssetIdInput], TokenInfoOutput>;
-    initialize: InvokeFunction<[owner: IdentityInput], void>;
+    burn_cinder: InvokeFunction<[sender: IdentityInput, amount: BigNumberish], boolean>;
+    initialize: InvokeFunction<[owner: IdentityInput], boolean>;
+    mint_cinder: InvokeFunction<[recipient: IdentityInput, amount: BigNumberish], void>;
     set_image: InvokeFunction<[image: StdString], void>;
     set_owner: InvokeFunction<[owner: IdentityInput], void>;
   };
