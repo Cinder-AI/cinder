@@ -5,12 +5,12 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - ./indexer/.env
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d envio-dev"]
-      interval: 5s
-      timeout: 3s
+      interval: 1s
       retries: 20
 
   graphql-engine:
@@ -26,13 +26,15 @@ services:
       - .env
     healthcheck:
       test: timeout 1s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
-      interval: 5s
+      interval: 2s
       timeout: 2s
       retries: 50
       start_period: 5s
 
   indexer:
-    image: node:20-bookworm
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
     container_name: cinder-indexer
     restart: unless-stopped
     working_dir: /app
@@ -48,8 +50,6 @@ services:
     env_file:
       - .env
 
-    command: sh -c "corepack enable && corepack prepare pnpm@8.15.9 --activate && pnpm install --no-frozen-lockfile && cd generated && pnpm install --no-frozen-lockfile && pnpm run build && cd /app && TUI_OFF=true pnpm start"
-
   sse-service:
     build:
       context: ./sse-service
@@ -63,6 +63,8 @@ services:
     depends_on:
       graphql-engine:
         condition: service_healthy
+      indexer:
+        condition: service_started
     env_file:
       - .env
   cinder:
@@ -81,6 +83,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      sse-service:
+        condition: service_started
+      storage:
+        condition: service_started
   storage:
     build:
       context: ./storage
@@ -103,6 +110,7 @@ services:
     volumes:
       - fuel_db:/data
     restart: unless-stopped
+
 volumes:
   db_data:
   fuel_db:
