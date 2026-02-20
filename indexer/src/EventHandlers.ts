@@ -7,7 +7,8 @@ import {
   Cinder_StrLog,
   Cinder_InitializeEvent,
   Cinder_SetOwnerEvent,
-  Cinder_TotalSupplyEvent,
+  Cinder_Mint,
+  Cinder_Burn,
   Launchpad,
   Launchpad_CampaignLaunchedEvent,
   Launchpad_CampaignMigratedEvent,
@@ -19,6 +20,7 @@ import {
   Launchpad_SellEvent,
   Launchpad_ClaimEvent,
   Launchpad_CampaignDeniedEvent,
+  Launchpad_BoostEvent,
   ReactorPool,
   ReactorPool_CreatePoolEvent,
   ReactorPool_MintEvent,
@@ -92,15 +94,39 @@ Cinder.SetOwnerEvent.handler(async ({ event, context }) => {
   context.Cinder_SetOwnerEvent.set(entity);
 });
 
-Cinder.TotalSupplyEvent.handler(async ({ event, context }) => {
-  const entity: Cinder_TotalSupplyEvent = {
+Cinder.MintEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const recipientId = identityToId(event.params.recipient);
+  const amount = toHuman(event.params.amount, BASE_ASSET_DECIMALS);
+  const entity: Cinder_Mint = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    recipient_id: recipientId,
+    amount: amount,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
   };
-
-  context.Cinder_TotalSupplyEvent.set(entity);
+  context.Cinder_Mint.set(entity);
 });
 
-
+Cinder.BurnEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const senderId = identityToId(event.params.sender);
+  const amount = toHuman(event.params.amount, BASE_ASSET_DECIMALS);
+  const entity: Cinder_Burn = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    sender_id: senderId,
+    amount: amount,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+  context.Cinder_Burn.set(entity);
+});
 
 Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
   const entity: Launchpad_CampaignLaunchedEvent = {
@@ -210,12 +236,10 @@ Launchpad.BuyEvent.handler(async ({ event, context }) => {
   const tokenDecimals = campaign?.token_decimals ?? 0;
   const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
   const soldSupply = event.params.sold_supply;
-  const currentPriceScaled =
-    campaign !== undefined
-      ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
-      : undefined;
-  const currentPrice =
-    currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
+  const currentPriceScaled = campaign
+  ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
+  : 0n;
+  const currentPrice = currentPriceScaled / PRICE_SCALE;
   const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
@@ -277,14 +301,9 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
   const campaignId = event.params.asset_id.bits;
   const creatorId = identityToId(event.params.creator);
   const tokenInfo = event.params.token_info;
-  const dayId = getDayId(timestamp);
-  const dayStart = getDayStart(timestamp);
-
-  await upsertUser(context, creatorId, timestamp, 1n, 0n);
-  await markUserActiveForDay(context, creatorId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, 0n, 0n);
-  await markCampaignUserActiveForDay(context, campaignId, creatorId, dayId, dayStart, timestamp);
-  await upsertCampaignDailyStats(context, campaignId, dayId, dayStart, 1n, 0n, 0n);
+  // Keep creator profile fresh, but do not count campaign creation as market activity.
+  // This prevents synthetic inflation of campaign unique users/actions at creation time.
+  await upsertUser(context, creatorId, timestamp, 0n, 0n);
 
   const humanTarget = toHuman(event.params.target, BASE_ASSET_DECIMALS);
   await upsertCampaign(context, campaignId, {
@@ -308,6 +327,11 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
     current_price_scaled: 0n,
     current_price: 0n,
     curve_reserve: 0n,
+    has_boost: false,
+    boost_power_x1e6: 0n,
+    boost_duration_secs: 0n,
+    boost_burned_at: 0n,
+    boost_ends_at: 0n,
   });
 });
 
@@ -332,11 +356,19 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
 
   const humanPledgeAmount = toHuman(event.params.amount, BASE_ASSET_DECIMALS);
   const humanTotalPledged = toHuman(event.params.total_pledged, BASE_ASSET_DECIMALS);
-  await upsertUser(context, userId, timestamp, 1n, 0n);
+  await upsertUser(context, userId, timestamp, 1n, humanPledgeAmount);
   await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, 0n, 0n);
+  await upsertDailyStats(context, dayId, dayStart, 1n, humanPledgeAmount, humanPledgeAmount);
   await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
-  await upsertCampaignDailyStats(context, campaignId, dayId, dayStart, 1n, 0n, 0n);
+  await upsertCampaignDailyStats(
+    context,
+    campaignId,
+    dayId,
+    dayStart,
+    1n,
+    humanPledgeAmount,
+    humanPledgeAmount,
+  );
 
   const pledge: Pledge = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
@@ -354,6 +386,7 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
     const updatedCampaign: Campaign = {
       ...campaign,
       total_pledged: humanTotalPledged,
+      total_volume_base: campaign.total_volume_base + humanPledgeAmount,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -400,9 +433,8 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
   const currentPriceScaled =
     campaign !== undefined
       ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
-      : undefined;
-  const currentPrice =
-    currentPriceScaled !== undefined ? currentPriceScaled / PRICE_SCALE : undefined;
+      : 0n;
+  const currentPrice = currentPriceScaled / PRICE_SCALE;
   const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
   const trade: Trade = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
@@ -434,8 +466,20 @@ Launchpad.SellEvent.handler(async ({ event, context }) => {
 });
 
 Launchpad.ClaimEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const campaignId = event.params.asset_id.bits;
+  const senderId = identityToId(event.params.sender);
+  const humanAmount = toHuman(event.params.amount, BASE_ASSET_DECIMALS);
   const entity: Launchpad_ClaimEvent = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    campaign_id: campaignId,
+    sender_id: senderId,
+    amount: humanAmount,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
   };
 
   context.Launchpad_ClaimEvent.set(entity);
@@ -444,7 +488,6 @@ Launchpad.ClaimEvent.handler(async ({ event, context }) => {
     return;
   }
 
-  const timestamp = getTimestamp(event);
   const userId = identityToId(event.params.sender);
   const dayId = getDayId(timestamp);
   const dayStart = getDayStart(timestamp);
@@ -454,8 +497,18 @@ Launchpad.ClaimEvent.handler(async ({ event, context }) => {
 });
 
 Launchpad.CampaignDeniedEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const campaignId = event.params.asset_id.bits;
+  const senderId = identityToId(event.params.sender);
   const entity: Launchpad_CampaignDeniedEvent = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    campaign_id: campaignId,
+    sender_id: senderId,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
   };
 
   context.Launchpad_CampaignDeniedEvent.set(entity);
@@ -464,15 +517,55 @@ Launchpad.CampaignDeniedEvent.handler(async ({ event, context }) => {
     return;
   }
 
-  const campaignId = event.params.asset_id.bits;
   const campaign = await context.Campaign.get(campaignId);
   if (campaign) {
     const updatedCampaign: Campaign = {
       ...campaign,
-      status: "Failed",
+      status: "Denied",
     };
     context.Campaign.set(updatedCampaign);
   }
+});
+
+Launchpad.BoostEvent.handler(async ({ event, context }) => {
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const campaignId = event.params.asset_id.bits;
+  const creatorId = identityToId(event.params.creator);
+  const burnAmount = toHuman(event.params.burn_amount, BASE_ASSET_DECIMALS);
+
+  const entity: Launchpad_BoostEvent = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    campaign_id: campaignId,
+    creator_id: creatorId,
+    burn_amount: burnAmount,
+    burned_at: event.params.burned_at,
+    boost_power_x1e6: event.params.boost_power_x1e6,
+    duration_secs: event.params.duration_secs,
+    ends_at: event.params.ends_at,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+  context.Launchpad_BoostEvent.set(entity);
+
+  if (context.isPreload) {
+    return;
+  }
+
+  const campaign = await context.Campaign.get(campaignId);
+  if (!campaign) {
+    return;
+  }
+
+  const updatedCampaign: Campaign = {
+    ...campaign,
+    has_boost: true,
+    boost_power_x1e6: event.params.boost_power_x1e6,
+    boost_duration_secs: event.params.duration_secs,
+    boost_burned_at: event.params.burned_at,
+    boost_ends_at: event.params.ends_at,
+  };
+  context.Campaign.set(updatedCampaign);
 });
 
 ReactorPool.CreatePoolEvent.handler(async ({ event, context }) => {

@@ -3,11 +3,11 @@ name: envio-indexer
 ecosystem: fuel
 networks:
   - id: 0
-    start_block: 0
+    start_block: 54700000
     contracts:
       - name: Launchpad
         address:
-          - 0x732a37e72cb2664ac09cdde172c722745b9e7e201f34e76eb6471fb561c6bbf2
+          - 0xf9877f27adf45934199405c7367f59bb026b0b13c2dfc0f87e6c4428a6b7f325
         abi_file_path: abis/launchpad-abi.json
         handler: src/EventHandlers.ts
         events:
@@ -31,9 +31,11 @@ networks:
             logId: '2279040052662566249'
           - name: CampaignDeniedEvent
             logId: '12980308201962632363'
+          - name: BoostEvent
+            logId: '4146107088254613211'
       - name: Cinder
         address:
-          - 0x4214e6fc579b26d42bf87d77e0f58a027905050503d361ab4cfdcd74f69f4042
+          - 0xd3bcd74f5b94bf797430b887ac1413c4d9d71b634f2080a2f8ea6193028c9e3a
         abi_file_path: abis/cinder-abi.json
         handler: src/EventHandlers.ts
         events:
@@ -45,8 +47,10 @@ networks:
             logId: '10485970385165293146'
           - name: SetOwnerEvent
             logId: '1320396085097728272'
-          - name: TotalSupplyEvent
-            logId: '8807078256608655330'
+          - name: MintEvent
+            logId: '10159620282815190840'
+          - name: BurnEvent
+            logId: '12646749936579834261'
       - name: ReactorPool
         address:
           - 0xa5843e9c21e5039d527b25b45c8f3c28ca33258ae52e6350764024ef24831966

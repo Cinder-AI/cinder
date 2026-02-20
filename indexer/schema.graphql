@@ -28,6 +28,11 @@ type Campaign {
   current_price_scaled: BigInt!
   current_price: BigInt!
   curve_reserve: BigInt!
+  has_boost: Boolean!
+  boost_power_x1e6: BigInt!
+  boost_duration_secs: BigInt!
+  boost_burned_at: BigInt!
+  boost_ends_at: BigInt!
 }
 
 type Trade {
@@ -37,8 +42,8 @@ type Trade {
   side: String!
   amount_token: BigInt!
   amount_base: BigInt!
-  price_scaled: BigInt
-  price: BigInt
+  price_scaled: BigInt!
+  price: BigInt!
   curve_reserve: BigInt!
   timestamp: BigInt!
   tx_id: String!
@@ -130,10 +135,20 @@ type Cinder_Transfer {
 
 type Cinder_Mint {
   id: ID!
+  recipient_id: String!
+  amount: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
 }
 
 type Cinder_Burn {
   id: ID!
+  sender_id: String!
+  amount: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
 }
 
 type Cinder_Call {
@@ -170,6 +185,12 @@ type Launchpad_SellEvent {
 
 type Launchpad_ClaimEvent {
   id: ID!
+  campaign_id: String!
+  sender_id: String!
+  amount: BigInt!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
 }
 
 type Launchpad_SetNameEvent {
@@ -182,6 +203,12 @@ type Launchpad_SetSymbolEvent {
 
 type Launchpad_CampaignDeniedEvent {
   id: ID!
+  campaign_id: String!
+  sender_id: String!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+  
 }
 
 type Launchpad_CampaignMigratedEvent {
@@ -263,6 +290,19 @@ type ReactorPool_SwapEvent {
   reserve_0: BigInt!
   reserve_1: BigInt!
   timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
+type Launchpad_BoostEvent {
+  id: ID!
+  campaign_id: String!
+  creator_id: String!
+  burn_amount: BigInt!
+  burned_at: BigInt!
+  boost_power_x1e6: BigInt!
+  duration_secs: BigInt!
+  ends_at: BigInt!
   tx_id: String!
   block_height: BigInt!
 }
