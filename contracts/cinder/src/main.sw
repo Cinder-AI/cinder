@@ -20,7 +20,7 @@ use std::{
     logging::log,
 };
 
-use events::{InitializeEvent, SetImageEvent, SetOwnerEvent, MintEvent, BurnEvent, BoostEvent};
+use events::{InitializeEvent, SetImageEvent, SetOwnerEvent, MintEvent, BurnEvent};
 
 configurable {
     MAX_SUPPLY: u64 = 1_000_000_000,
