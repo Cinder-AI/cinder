@@ -67,6 +67,26 @@ services:
         condition: service_started
     env_file:
       - .env
+  reactor:
+    build:
+      context: ./reactor
+      dockerfile: Dockerfile
+    ports:
+      - "5004:8000"
+    volumes:
+      - ./reactor:/app
+      - reactor_node_modules:/app/node_modules
+    container_name: cinder-reactor
+    restart: unless-stopped
+    depends_on:
+      graphql-engine:
+        condition: service_healthy
+      sse-service:
+        condition: service_started
+      fuel-core:
+        condition: service_started
+    env_file:
+      - .env
   cinder:
     build:
       context: ./cinder
@@ -117,3 +137,4 @@ volumes:
   cinder_node_modules:
   indexer_node_modules:
   indexer_generated_node_modules:
+  reactor_node_modules:
