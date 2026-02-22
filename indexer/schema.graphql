@@ -29,7 +29,7 @@ type Campaign {
   current_price: BigInt!
   curve_reserve: BigInt!
   has_boost: Boolean!
-  boost_power_x1e6: BigInt!
+  boost_multiplier_x1e6: BigInt!
   boost_duration_secs: BigInt!
   boost_burned_at: BigInt!
   boost_ends_at: BigInt!
@@ -300,7 +300,7 @@ type Launchpad_BoostEvent {
   creator_id: String!
   burn_amount: BigInt!
   burned_at: BigInt!
-  boost_power_x1e6: BigInt!
+  boost_multiplier_x1e6: BigInt!
   duration_secs: BigInt!
   ends_at: BigInt!
   tx_id: String!

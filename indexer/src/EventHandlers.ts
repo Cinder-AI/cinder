@@ -1,4 +1,4 @@
-/*
+ /*
  * Please refer to https://docs.envio.dev for a thorough guide on all Envio indexer features
  */
 import {
@@ -328,7 +328,7 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
     current_price: 0n,
     curve_reserve: 0n,
     has_boost: false,
-    boost_power_x1e6: 0n,
+    boost_multiplier_x1e6: 1_000_000n,
     boost_duration_secs: 0n,
     boost_burned_at: 0n,
     boost_ends_at: 0n,
@@ -540,7 +540,7 @@ Launchpad.BoostEvent.handler(async ({ event, context }) => {
     creator_id: creatorId,
     burn_amount: burnAmount,
     burned_at: event.params.burned_at,
-    boost_power_x1e6: event.params.boost_power_x1e6,
+    boost_multiplier_x1e6: event.params.boost_multiplier_x1e6,
     duration_secs: event.params.duration_secs,
     ends_at: event.params.ends_at,
     tx_id: txId,
@@ -560,7 +560,7 @@ Launchpad.BoostEvent.handler(async ({ event, context }) => {
   const updatedCampaign: Campaign = {
     ...campaign,
     has_boost: true,
-    boost_power_x1e6: event.params.boost_power_x1e6,
+    boost_multiplier_x1e6: event.params.boost_multiplier_x1e6,
     boost_duration_secs: event.params.duration_secs,
     boost_burned_at: event.params.burned_at,
     boost_ends_at: event.params.ends_at,

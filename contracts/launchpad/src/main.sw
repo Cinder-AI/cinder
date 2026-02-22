@@ -177,8 +177,6 @@ fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
 
     if burn_amount > 0 {
         // if cinder burn reverts, whole tx will be reverted
-        // if there is leftover credit, we don't add it to the burn amount
-        // to make
         let success = cinder.burn_cinder {
             coins: burn_amount,
             asset_id: cinder_asset_id.into(),
@@ -196,7 +194,7 @@ fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
         creator: sender,
         burn_amount,
         burned_at: now_ts,
-        boost_power_x1e6: boost.boost_power_x1e6,
+        boost_multiplier_x1e6: boost.boost_multiplier_x1e6,
         duration_secs: boost.duration_secs,
         ends_at: boost.ends_at,
     });

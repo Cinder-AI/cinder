@@ -48,7 +48,7 @@ export interface CampaignData {
   boost: Option<{
     burnAmount: BN;
     burnedAt: BN;
-    boostPowerX1e6: BN;
+    boostMultiplierX1e6: BN;
     durationSecs: BN;
     endsAt: BN;
     status: BoostStatusOutput;
@@ -394,7 +394,7 @@ export class LaunchpadHelper {
   ): Promise<{
     burnAmount: BN;
     burnedAt: BN;
-    boostPowerX1e6: BN;
+    boostMultiplierX1e6: BN;
     durationSecs: BN;
     endsAt: BN;
     status: BoostStatusOutput;
@@ -416,7 +416,7 @@ export class LaunchpadHelper {
     return {
       burnAmount: value.burn_amount,
       burnedAt: value.burned_at,
-      boostPowerX1e6: value.boost_power_x1e6,
+      boostMultiplierX1e6: value.boost_multiplier_x1e6,
       durationSecs: value.duration_secs,
       endsAt: value.ends_at,
       status: value.status,
@@ -483,7 +483,7 @@ export class LaunchpadHelper {
       boost: campaign.boost ? {
         burnAmount: campaign.boost.burn_amount,
         burnedAt: campaign.boost.burned_at,
-        boostPowerX1e6: campaign.boost.boost_power_x1e6,
+        boostMultiplierX1e6: campaign.boost.boost_multiplier_x1e6,
         durationSecs: campaign.boost.duration_secs,
         endsAt: campaign.boost.ends_at,
         status: campaign.boost.status,

@@ -266,11 +266,11 @@ describe('Launchpad Contract', () => {
   //       boostAmount,
   //       env.assetIds.cinder
   //     );
-  //     const { burnAmount, burnedAt, boostPowerX1e6, durationSecs, endsAt, status } = boost;
+  //     const { burnAmount, burnedAt, boostMultiplierX1e6, durationSecs, endsAt, status } = boost;
   //     console.debug('Boost result:', {
   //        burnAmount: burnAmount.toNumber(), 
-  //        burnedAt, boostPowerX1e6: 
-  //        boostPowerX1e6.toNumber(), 
+  //        burnedAt, boostMultiplierX1e6: 
+  //        boostMultiplierX1e6.toNumber(), 
   //        durationSecs: durationSecs.toNumber(), 
   //        endsAt: endsAt.toString(),
   //         status });
@@ -312,33 +312,9 @@ describe('Launchpad Contract', () => {
   //   })
   // });
 
-  describe('use leftover credit to boost', () => {
-    test('should use leftover credit to boost', async () => {
-      const creator = env.getCreator();
-
-      const boostAmount: BigNumberish = 100_000_000_000;
-      const { assetId: tokenId, campaign } = await launchpad.createBoostedCampaign(
-        creator,
-        {
-          name: 'Leftover Credit Token',
-          ticker: 'LCT',
-          description: 'Campaign created with leftover credit',
-          image: 'https://test.com/lct.png',
-        },
-        env.assetIds.cinder,
-        boostAmount
-      );
-      expect(campaign).toBeDefined();
-      expect(campaign.boost).toBeDefined();
-      expect(campaign.status).toBe('Active');
-      await new Promise(resolve => setTimeout(resolve, 5000)); // wait for 5 seconds to calculate carryover credit
-      const _ = await launchpad.denyCampaign(creator, tokenId);
-      const credit = await launchpad.getCreatorBoostCredit(creator.address.toB256());
-      console.debug('credit', credit.toNumber());
-      expect(credit.toNumber()).toBeGreaterThan(0);
-      expect(credit.toNumber()).toBeLessThan(boostAmount);
+  describe("create pool and add liquidity", () => {
+    test('should create Reactor pool and add liquidity', async () => {
+      const creator = getNextCreator();
     })
   });
-
-
 });

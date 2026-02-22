@@ -91,7 +91,7 @@ pub struct BoostEvent {
     pub creator: Identity,
     pub burn_amount: u64,
     pub burned_at: u64,
-    pub boost_power_x1e6: u64,
+    pub boost_multiplier_x1e6: u64,
     pub duration_secs: u64,
     pub ends_at: u64,
 }

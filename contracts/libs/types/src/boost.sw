@@ -2,20 +2,20 @@ library;
 
 use std::string::String;
 use std::identity::Identity;
-use std::block::timestamp;
 use utils::*;
 
 const FP_X1E6: u256 = 1_000_000u256;
 const LN2_X1E6: u256 = 693_147u256;
 const TWO_U256: u256 = 2u256;
 const SECONDS_PER_HOUR: u64 = 3600;
+const MULTIPLIER_SCALE_X1E6: u256 = 350_000u256; // 0.35 in x1e6
+const BOOST_MULT_MAX_X1E6: u256 = 3_000_000u256; // 3.0 in x1e6
 
 // Boost constants
 pub const BURN_REF: u64 = 100;
 pub const BOOST_MIN_HOURS: u64 = 2;
 pub const BOOST_TIME_SCALE_HOURS: u64 = 4;
 pub const BOOST_MAX_HOURS: u64 = 24;
-pub const CARRYOVER_FACTOR_X1E6: u64 = 800_000; // 0.8
 
 pub enum BoostStatus {
     Active: (),
@@ -35,7 +35,7 @@ impl PartialEq for BoostStatus {
 pub struct Boost {
     pub burn_amount: u64,
     pub burned_at:u64,
-    pub boost_power_x1e6: u64,
+    pub boost_multiplier_x1e6: u64,
     pub duration_secs: u64,
     pub ends_at: u64,
     pub status: BoostStatus,
@@ -84,21 +84,35 @@ fn ln_lp_ratio_x1e6(num: u64, den: u64) -> u64 {
 }
 
 impl Boost {
-    // boost power = ln(1 + burn_amount / BURN_REF)
-    pub fn calc_boost_power_x1e6(burn_amount: u64) -> u64 {
+    // ln term used by both multiplier and duration formulas
+    pub fn calc_boost_ln_x1e6(burn_amount: u64) -> u64 {
         ln_lp_ratio_x1e6(burn_amount, BURN_REF)
+    }
+
+    // boost multiplier = clamp(1 + 0.35 * ln(1 + burn/BURN_REF), 1, 3)
+    pub fn calc_boost_multiplier_x1e6(burn_amount: u64) -> u64 {
+        let ln_x1e6 = Self::calc_boost_ln_x1e6(burn_amount);
+        let scaled_ln = (MULTIPLIER_SCALE_X1E6 * u256::from(ln_x1e6)) / FP_X1E6;
+        let raw_multiplier = FP_X1E6 + scaled_ln;
+        let clamped = if raw_multiplier > BOOST_MULT_MAX_X1E6 {
+            BOOST_MULT_MAX_X1E6
+        } else {
+            raw_multiplier
+        };
+
+        u256_to_u64(clamped)
     }
 
     //duration = clamp(MIN + SCALE * ln(1 + burn/BURN_REF), MIN, MAX)
     pub fn calc_duration_secs(burn_amount: u64) -> u64 {
-        let power_x1e6 = Self::calc_boost_power_x1e6(burn_amount);
+        let ln_x1e6 = Self::calc_boost_ln_x1e6(burn_amount);
 
         let min_secs = BOOST_MIN_HOURS * SECONDS_PER_HOUR;
         let max_secs = BOOST_MAX_HOURS * SECONDS_PER_HOUR;
         let scale_secs = BOOST_TIME_SCALE_HOURS * SECONDS_PER_HOUR;
 
         let extra_secs = u256_to_u64(
-            (u256::from(scale_secs) * u256::from(power_x1e6)) / FP_X1E6
+            (u256::from(scale_secs) * u256::from(ln_x1e6)) / FP_X1E6
         );
 
         clamp_u64(min_secs + extra_secs, min_secs, max_secs)
@@ -110,14 +124,14 @@ impl Boost {
     ) -> Self {
         require(burn_amount > 0, "Burn amount must be greater than 0");
 
-        let boost_power_x1e6 = Self::calc_boost_power_x1e6(burn_amount);
+        let boost_multiplier_x1e6 = Self::calc_boost_multiplier_x1e6(burn_amount);
         let duration_secs = Self::calc_duration_secs(burn_amount);
         let ends_at = burned_at + duration_secs;
 
         Self {
             burn_amount,
             burned_at,
-            boost_power_x1e6,
+            boost_multiplier_x1e6,
             duration_secs,
             ends_at,
             status: BoostStatus::Active,
@@ -134,20 +148,12 @@ impl Boost {
         }
     }
 
-    pub fn remaining_ratio_x1e6(self, now_ts: u64) -> u64 {
-        if now_ts >= self.ends_at || self.duration_secs == 0 {
-            return 0;
-        }
-        let remaining = self.ends_at - now_ts;
-        u256_to_u64((u256::from(remaining) * FP_X1E6) / u256::from(self.duration_secs))
-    }
-
 }
 
 #[test]
-fn test_boost_power_x1e6() {
-    let boost_power_x1e6 = Boost::calc_boost_power_x1e6(300);
-    assert_eq(boost_power_x1e6, 1_386_294);
+fn test_boost_multiplier_x1e6() {
+    let boost_multiplier_x1e6 = Boost::calc_boost_multiplier_x1e6(300);
+    assert_eq(boost_multiplier_x1e6, 1_485_202);
 }
 
 #[test]
@@ -156,16 +162,3 @@ fn test_duration_secs() {
     assert_eq(duration_secs, 27_162);
 }
 
-#[test]
-fn test_remaining_ratio_x1e6() {
-    let boost = Boost {
-        burn_amount: 300,
-        duration_secs: 27_162,
-        ends_at: 27_162,
-        status: BoostStatus::Active,
-        boost_power_x1e6: 1_386_294,
-        burned_at: 0,
-    };
-    let ratio = boost.remaining_ratio_x1e6(13_581);
-    assert_eq(ratio, 500_000);
-}
