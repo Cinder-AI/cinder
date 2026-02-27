@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from './Button'
 import { TokenMedia } from './TokenMedia'
 import { Token } from '../types/index'
+import { APP_CONFIG } from '../config'
 
 interface TokenDetailsProps {
   token: Token
@@ -10,14 +11,11 @@ interface TokenDetailsProps {
 
 export const TokenDetails = ({ token }: TokenDetailsProps) => {
   const navigate = useNavigate()
-  console.log(token)
-  
   if (!token) {
     return <div>Token not found</div>
   }
 
-  const image = token.image
-  console.log(image)
+  const image = `${APP_CONFIG.STORAGE_URL}/uploads/${token.image}`
 
   return (
     <div className="token-details">
