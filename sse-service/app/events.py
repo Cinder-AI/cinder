@@ -1,19 +1,26 @@
 from typing import Literal
 
 from cmc import CoinMarketCapFeed
-from schemas import CampaignRow, CampaignUpdatedEventData, TradeRow, TradeCreatedEventData
+from schemas import (
+    CampaignMigratedEventData,
+    CampaignRow,
+    CampaignUpdatedEventData,
+    TradeCreatedEventData,
+    TradeRow,
+)
 from utils import parse_int, parse_float, scaled_to_price, to_usd, now_iso
 
 
 async def build_campaign_updated_event_data(
     row: CampaignRow,
     cmc_feed: CoinMarketCapFeed,
-    op: Literal["INSERT", "UPDATE", "DELETE", "MANUAL"] = "MANUAL"
+    op: Literal["INSERT", "UPDATE", "DELETE", "MANUAL"] = "MANUAL",
+    trigger_name: str | None = None
 ) -> CampaignUpdatedEventData:
     """Build campaign updated event data from a campaign row."""
     sold_supply = parse_int(row.curve_sold_supply)
     max_supply = parse_int(row.curve_max_supply)
-    token_decimals = row.token_decimals or 0
+    token_decimals = row.token_decimals if row.token_decimals is not None else (row.decimals or 0)
     progress = round((sold_supply / max_supply) * 100, 4) if max_supply > 0 else None
     market_cap_base = None
     current_price_scaled_int = parse_int(row.current_price_scaled)
@@ -27,9 +34,12 @@ async def build_campaign_updated_event_data(
     current_price_fuel = scaled_to_price(row.current_price_scaled)
     volume_base_fuel = parse_float(row.total_volume_base)
     market_cap_base_fuel = parse_float(market_cap_base) if market_cap_base is not None else None
+    virtual_base_reserve = parse_int(row.virtual_base_reserve)
+    virtual_token_reserve = parse_int(row.virtual_token_reserve)
 
     return CampaignUpdatedEventData(
         op=op,
+        triggerName=trigger_name,
         campaignId=row.id,
         currentPrice=row.current_price,
         currentPriceScaled=row.current_price_scaled,
@@ -45,6 +55,24 @@ async def build_campaign_updated_event_data(
         fuelUsd=quote.price if quote else None,
         fuelUsdUpdatedAt=quote.updated_at if quote else None,
         status=row.status,
+        virtualBaseReserve=virtual_base_reserve,
+        virtualTokenReserve=virtual_token_reserve,
+        updatedAt=now_iso(),
+    )
+
+
+def build_campaign_migrated_event_data(
+    row: CampaignRow,
+    op: Literal["INSERT", "UPDATE", "DELETE", "MANUAL"] = "MANUAL",
+    trigger_name: str | None = None
+) -> CampaignMigratedEventData:
+    """Build campaign migrated event data from a campaign row."""
+    return CampaignMigratedEventData(
+        op=op,
+        triggerName=trigger_name,
+        campaignId=row.id,
+        status=row.status,
+        fuelReserve=row.curve_reserve,
         updatedAt=now_iso(),
     )
 

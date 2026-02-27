@@ -18,11 +18,18 @@ from config import (
     COINMK_POLL_SECONDS,
 )
 from chart import build_chart_points, fill_candle_gaps, build_chart_summary
-from events import build_campaign_updated_event_data, build_trade_created_event_data
+from events import (
+    build_campaign_migrated_event_data,
+    build_campaign_updated_event_data,
+    build_trade_created_event_data,
+)
 from graphql import fetch_trades, fetch_campaign_row
 from schemas import (
     BrokerStatsResponse,
     CampaignSnapshotResponse,
+    CampaignMigratedPayload,
+    CampaignMigratedWebhookEnvelope,
+    CampaignMigratedResponse,
     CampaignUpdatedPayload,
     CampaignUpdatedWebhookEnvelope,
     CampaignUpdatedResponse,
@@ -128,7 +135,9 @@ async def campaign_updated(
     if row is None:
         raise HTTPException(status_code=400, detail="Invalid payload: missing event.data.new/old")
 
-    event_data = await build_campaign_updated_event_data(row, cmc_feed, op=payload.event.op)
+    event_data = await build_campaign_updated_event_data(
+        row, cmc_feed, op=payload.event.op, trigger_name=payload.trigger.name
+    )
     msg = to_sse("campaign_updated", event_data, event_id=payload.id)
     delivered = await broker.publish_campaign(row.id, msg)
 
@@ -147,8 +156,27 @@ async def campaign_snapshot(campaignId: str = Query(...)) -> CampaignSnapshotRes
 
 
 @app.post("/campaign_migrated")
-async def campaign_migrated():
-    pass
+async def campaign_migrated(
+    webhook: CampaignMigratedPayload | CampaignMigratedWebhookEnvelope,
+) -> JSONResponse:
+    payload = webhook.payload if isinstance(webhook, CampaignMigratedWebhookEnvelope) else webhook
+
+    row = payload.event.data.new or payload.event.data.old
+    if row is None:
+        raise HTTPException(status_code=400, detail="Invalid payload: missing event.data.new/old")
+
+    event_data = build_campaign_migrated_event_data(
+        row,
+        op=payload.event.op,
+        trigger_name=payload.trigger.name,
+    )
+    if event_data.status != "Migrated":
+        return
+    msg = to_sse("campaign_migrated", event_data, event_id=payload.id)
+    delivered = await broker.publish_campaign(row.id, msg)
+
+    response = CampaignMigratedResponse(ok=True, campaignId=row.id, delivered=delivered)
+    return JSONResponse(response.model_dump())
 
 
 # ============================================================================
