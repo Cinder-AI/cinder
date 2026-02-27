@@ -25,10 +25,10 @@ use events::{
     CampaignDeletedEvent,
     CampaignLaunchedEvent,
     CampaignMigratedEvent,
+    TradeEvent,
+    TradeType,
     PledgedEvent,
     ClaimEvent,
-    BuyEvent,
-    SellEvent,
     MintEvent,
     BurnEvent,
     BoostEvent,
@@ -128,32 +128,51 @@ fn is_instant_launch_ready(total_pledged: u64) -> bool {
 #[storage(read, write)]
 fn do_launch(asset_id: AssetId, campaign: Campaign, sender: Identity) -> bool {
     let mut campaign = campaign;
+    let mut curve = campaign.curve;
+    let total_pledged = campaign.total_pledged;
+
     require(campaign.status == CampaignStatus::Active, "Not active");
-    require(campaign.total_pledged > 0, "No pledges");
+    require(total_pledged > 0, "No pledges");
 
-    let curve_supply = (INITIAL_SUPPLY / 100) * CURVE_SUPPLY_PERCENT;
-    let amm_supply = INITIAL_SUPPLY - curve_supply;
+    let curve_supply_u64 = (INITIAL_SUPPLY / 100) * CURVE_SUPPLY_PERCENT;
+    let amm_supply = INITIAL_SUPPLY - curve_supply_u64;
 
-    let users_share = (curve_supply / MIGRATION_TARGET) * campaign.total_pledged;
-    let remaining_supply = curve_supply - users_share;
-    require(users_share <= curve_supply, "User share exceeds curve supply");
+    require(total_pledged <= MIGRATION_TARGET, "Hardcap exceeded");
 
-    campaign.curve.initialize(campaign.total_pledged, users_share);
+    let (virtual_base_reserve, virtual_token_reserve) = BondingCurve::calc_virtual_reserves(
+        curve_supply_u64,
+        amm_supply,
+        MIGRATION_TARGET,
+    );
+
+    curve.initialize(
+        virtual_base_reserve,
+        virtual_token_reserve,
+        curve_supply_u64,
+    );
+    let users_share_u64 = curve.tokens_for_budget(total_pledged);
+    require(users_share_u64 > 0, "Users share is zero");
+    let users_cost = curve.buy(users_share_u64);
+
+    // --- Mint full supply ---
     mint(campaign.sub_id, INITIAL_SUPPLY);
     campaign.amm_reserved = amm_supply;
-    campaign.curve_reserve = campaign.total_pledged;
+    curve.reserve = users_cost;
+    campaign.launch_users_share = users_share_u64;
     campaign.status = CampaignStatus::Launched;
+    campaign.curve = curve;
     storage.campaigns.insert(asset_id, campaign);
     log(CampaignLaunchedEvent {
         asset_id,
         sender,
-        users_share,
-        remaining_supply,
+        users_share: users_share_u64,
+        remaining_supply: curve.supply,
         amm_supply,
-        base_price: campaign.curve.base_price,
-        slope: campaign.curve.slope,
-        max_supply: campaign.curve.max_supply,
-        curve_reserve: campaign.curve_reserve,
+        virtual_base_reserve: virtual_base_reserve,
+        virtual_token_reserve: virtual_token_reserve,
+        curve_max_supply: curve.max_supply,
+        curve_reserve: curve.reserve,
+        curve_supply: curve.max_supply,
     });
 
     true
@@ -200,6 +219,30 @@ fn _boost_campaign(asset_id: AssetId, burn_amount: u64) -> Boost {
     });
 
     boost
+}
+
+#[storage(read, write)]
+fn _do_migrate(asset_id: AssetId) -> bool {
+    let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
+    require(campaign.status == CampaignStatus::Launched, "Not launched");
+    require(campaign.curve.is_filled(), "Curve not filled");
+    let sender = msg_sender().unwrap();
+    let owner_state = storage.owner.read();
+    let owner = match owner_state {
+        State::Initialized(identity) => identity,
+        _ => revert(0), // Should not happen
+    };
+    transfer(owner, asset_id, campaign.amm_reserved);
+    transfer(owner, pledge_asset_id(), campaign.curve.reserve);
+    log(CampaignMigratedEvent {
+        asset_id,
+        sender,
+        fuel_reserve: campaign.curve.reserve,
+        token_reserve: campaign.amm_reserved,
+    });
+    campaign.status = CampaignStatus::Migrated;
+    storage.campaigns.insert(asset_id, campaign);
+    true
 }
 
 #[storage(read)]
@@ -388,8 +431,8 @@ impl Launchpad for Contract {
             status: CampaignStatus::Active,
             token_id: asset_id,
             total_pledged: 0,
-            curve_reserve: 0,
             total_supply: 0,
+            launch_users_share: 0,
             sub_id: sub_id,
             curve: curve,
             amm_reserved: 0,
@@ -463,7 +506,9 @@ impl Launchpad for Contract {
             let mut pledge = pledges_vec.get(i).unwrap().read();
             if pledge.sender == sender {
                 require(!pledge.claimed, "Already claimed");
-                let users_share = campaign.curve.sold_supply;
+                // Claims must use launch-time share snapshot, not mutable sold supply.
+                let users_share = campaign.launch_users_share;
+                require(users_share > 0, "Users share is zero");
                 let user_share = {
                     let pledged_256 = u256::from(pledge.amount);
                     let users_share_256 = u256::from(users_share);
@@ -491,21 +536,7 @@ impl Launchpad for Contract {
     /// Migrates a token to Reactor DEX
     fn migrate(asset_id: AssetId) -> bool {
         require_owner(storage.owner.read());
-        let mut campaign = storage.campaigns.get(asset_id).try_read().unwrap();
-        require(campaign.status == CampaignStatus::Launched, "Not launched");
-        let sender = msg_sender().unwrap();
-        transfer(sender, asset_id, campaign.amm_reserved);
-        transfer(sender, pledge_asset_id(), campaign.curve_reserve);
-
-        log(CampaignMigratedEvent {
-            asset_id,
-            sender,
-            base_reserve: campaign.curve_reserve,
-            token_reserve: campaign.amm_reserved,
-        });
-
-        campaign.status = CampaignStatus::Migrated;
-        storage.campaigns.insert(asset_id, campaign);
+        _do_migrate(asset_id);
         true
     }
 
@@ -554,23 +585,29 @@ impl Launchpad for Contract {
 
         let best = campaign.curve.tokens_for_budget(budget);
         require(best > 0, "Budget too low");
-        let cost = campaign.curve.buy_cost(best);
-        let _ = campaign.curve.buy(best);
-        campaign.curve_reserve += cost;
+        let cost = campaign.curve.buy(best);
+        campaign.curve.reserve += cost;
         storage.campaigns.insert(asset_id, campaign);
 
         if budget > cost {
             transfer(sender, pledge_asset_id(), budget - cost);
         }
         transfer(sender, asset_id, best);
-        log(BuyEvent {
+        log(TradeEvent {
             asset_id,
             sender,
-            amount: best,
-            cost,
-            sold_supply: campaign.curve.sold_supply,
-            curve_reserve: campaign.curve_reserve,
+            token_amount: best,
+            fuel_amount: cost,
+            curve_supply: campaign.curve.supply,
+            curve_reserve: campaign.curve.reserve,
+            virtual_base_reserve: campaign.curve.virtual_base_reserve,
+            virtual_token_reserve: campaign.curve.virtual_token_reserve,
+            trade_type: TradeType::Buy,
         });
+
+        if campaign.curve.is_filled() {
+            _do_migrate(asset_id);
+        }
         cost
     }
 
@@ -583,6 +620,7 @@ impl Launchpad for Contract {
         let sender = msg_sender().unwrap();
 
         require(campaign.status == CampaignStatus::Launched, "Not launched");
+        require(!campaign.curve.is_filled(), "Curve filled");
 
         let sent_asset = msg_asset_id();
         require(sent_asset == asset_id, "Sent asset is not the token");
@@ -592,20 +630,23 @@ impl Launchpad for Contract {
 
         let payout = campaign.curve.sell_payout(amount);
         require(payout > 0, "Payout is zero");
-        require(campaign.curve_reserve >= payout, "Insufficient curve reserve");
+        require(campaign.curve.reserve >= payout, "Insufficient curve reserve");
 
-        let _ = campaign.curve.sell(amount);
-        campaign.curve_reserve -= payout;
+        let payout = campaign.curve.sell(amount);
+        campaign.curve.reserve -= payout;
         storage.campaigns.insert(asset_id, campaign);
 
         transfer(sender, pledge_asset_id(), payout);
-        log(SellEvent {
+        log(TradeEvent {
             asset_id,
             sender,
-            amount,
-            payout,
-            sold_supply: campaign.curve.sold_supply,
-            curve_reserve: campaign.curve_reserve,
+            token_amount: amount,
+            fuel_amount: payout,
+            curve_supply: campaign.curve.supply,
+            curve_reserve: campaign.curve.reserve,
+            virtual_base_reserve: campaign.curve.virtual_base_reserve,
+            virtual_token_reserve: campaign.curve.virtual_token_reserve,
+            trade_type: TradeType::Sell,
         });
         payout
     }
