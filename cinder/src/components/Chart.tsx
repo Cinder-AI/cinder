@@ -4,6 +4,7 @@ import { formatNumber } from '../utils/index'
 import { BondingCurve } from './BondingCurve'
 import { sseApi, type ChartHistoryResponse, type ChartSummary } from '../services/indexerGraphQL'
 import '@styles/components/chart.css'
+import { APP_CONFIG } from '../config'
 
 interface ChartProps {
   token: any;
@@ -25,7 +26,7 @@ const DEFAULT_PRICE = 0.00000558
 const MARKET_CAP_ANIMATION_MS = 1200
 const HISTORY_WINDOW_SEC = 24 * 60 * 60
 const HISTORY_INTERVAL_SEC = 5 * 60
-const DEFAULT_SSE_URL = 'http://localhost:5002'
+const DEFAULT_SSE_URL = APP_CONFIG.SSE_URL
 
 const clampProgress = (value?: number) => {
   const numeric = typeof value === 'number' && !Number.isNaN(value) ? value : 0
@@ -378,90 +379,8 @@ export const Chart = ({ token }: ChartProps) => {
     return () => cancelAnimationFrame(animationId)
   }, [targetMarketCap])
 
-  useEffect(() => {
-    const baseUrl = (import.meta.env.VITE_SSE_URL || DEFAULT_SSE_URL).replace(/\/+$/, '')
-    const source = new EventSource(`${baseUrl}/sse?campaignId=${encodeURIComponent(String(token.id))}`)
-
-    const handleTrade = (event: MessageEvent) => {
-      try {
-        const payload = JSON.parse(event.data)
-        const quoteUsd = toFiniteNumber(payload.fuelUsd)
-        if (quoteUsd !== undefined && quoteUsd > 0) {
-          setFuelUsdQuote(quoteUsd)
-        }
-        const priceUsd = toFiniteNumber(payload.priceUsd)
-        const price =
-          (priceUsd !== undefined ? clampPrice(priceUsd) : undefined) ??
-          toPriceFromScaled(payload.priceScaled) ??
-          (Number.isFinite(Number(payload.price)) ? clampPrice(Number(payload.price)) : undefined)
-        if (price === undefined) return
-        setPoints((prev) => appendPoint(prev.length ? prev : buildFallbackSeries(token), price))
-        setHistorySummary((prev) => applyTradeToSummary(prev, payload))
-      } catch (error) {
-        console.error('Failed to parse trade_created event:', error)
-      }
-    }
-
-    const handleCampaign = (event: MessageEvent) => {
-      try {
-        const payload = JSON.parse(event.data)
-        const quoteUsd = toFiniteNumber(payload.fuelUsd)
-        if (quoteUsd !== undefined && quoteUsd > 0) {
-          setFuelUsdQuote(quoteUsd)
-        }
-        const priceUsd = toFiniteNumber(payload.currentPriceUsd)
-        const price = (priceUsd !== undefined ? clampPrice(priceUsd) : undefined) ?? toPriceFromScaled(payload.currentPriceScaled)
-        if (price !== undefined) {
-          setPoints((prev) => appendPoint(prev.length ? prev : buildFallbackSeries(token), price))
-        }
-        setHistorySummary((prev) => {
-          const next = applyPriceToSummary(prev, payload, 'currentPriceScaled', 'currentPrice')
-          if (!next) return next
-          const totalVolumeBase =
-            typeof payload.totalVolumeBase === 'string' ? payload.totalVolumeBase : next.volumeBase
-          const totalVolumeUsd = toFiniteNumber(payload.totalVolumeUsd)
-          return {
-            ...next,
-            volumeBase: totalVolumeBase,
-            volumeUsd: totalVolumeUsd ?? next.volumeUsd,
-          }
-        })
-        if (Number.isFinite(Number(payload.progress))) {
-          setLiveProgress(clampProgress(Number(payload.progress)))
-        } else if (payload.curveSoldSupply && payload.curveMaxSupply) {
-          const sold = toBigInt(payload.curveSoldSupply as string)
-          const max = toBigInt(payload.curveMaxSupply as string)
-          if (max > 0n) {
-            setLiveProgress(clampProgress(Number((sold * 10000n) / max) / 100))
-          }
-        }
-        const marketCapUsd = toFiniteNumber(payload.marketCapUsd)
-        if (marketCapUsd !== undefined) {
-          setLiveMarketCapUsd(Math.max(marketCapUsd, 0))
-        } else if (Number.isFinite(Number(payload.marketCapBase))) {
-          setLiveMarketCapUsd(Math.max(Number(payload.marketCapBase), 0))
-        }
-        const totalVolumeUsd = toFiniteNumber(payload.totalVolumeUsd)
-        if (totalVolumeUsd !== undefined) {
-          setLiveVolumeUsd(Math.max(totalVolumeUsd, 0))
-        }
-      } catch (error) {
-        console.error('Failed to parse campaign_updated event:', error)
-      }
-    }
-
-    source.addEventListener('trade_created', handleTrade as EventListener)
-    source.addEventListener('campaign_updated', handleCampaign as EventListener)
-    source.onerror = () => {
-      // EventSource auto-reconnects; keep quiet to avoid noisy logs.
-    }
-
-    return () => {
-      source.removeEventListener('trade_created', handleTrade as EventListener)
-      source.removeEventListener('campaign_updated', handleCampaign as EventListener)
-      source.close()
-    }
-  }, [token.id, token.price])
+  // SSE теперь работает глобально в StoreProvider, поэтому локальный SSE убран
+  // Обновления токена приходят через props token, который обновляется из store
 
   useEffect(() => {
     pointsRef.current = points
