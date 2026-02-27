@@ -1,4 +1,4 @@
-import { Header } from './Header.jsx'
+import { Header } from './Header.tsx'
 
 export function Layout({ children, title, headerOptions = {}, hideHeader = false }) {
   return (

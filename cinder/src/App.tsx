@@ -3,17 +3,18 @@ import { useConnectUI, useIsConnected, useNetwork, useBalance, useAccount, useWa
 import { useEffect } from 'react'
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Layout } from './components/Layout.jsx'
-import { ROUTES, getHeaderOptionsByPath } from './routes/routes.jsx'
-import { StartPage } from './pages/StartPage.jsx'
-import { DiscoveryPage } from './pages/DiscoveryPage.jsx'
-import { CreateTokenPage } from './pages/CreateTokenPage.jsx'
-import { HoldingsPage } from './pages/HoldingsPage.jsx'
-import { TokenDetailsPage } from './pages/TokenDetailsPage.jsx'
-import { ChatPage } from './pages/ChatPage.jsx'
-import { LeaderboardPage } from './pages/LeaderboardPage.jsx'
+import { Layout } from './components/Layout.tsx'
+import { ROUTES, getHeaderOptionsByPath } from './routes/routes.tsx'
+import { StartPage } from './pages/StartPage.tsx'
+import { DiscoveryPage } from './pages/DiscoveryPage.tsx'
+import { CreateTokenPage } from './pages/CreateTokenPage.tsx'
+import { HoldingsPage } from './pages/HoldingsPage.tsx'
+import { TokenDetailsPage } from './pages/TokenDetailsPage.tsx'
+import { ChatPage } from './pages/ChatPage.tsx'
+import { LeaderboardPage } from './pages/LeaderboardPage.tsx'
 import { BackgroundPage } from './pages/BackgroundPage.tsx'
 import { ContractTest } from './pages/ContractTest.tsx'
+import { AdminPage } from './pages/Admin.tsx'
 
 function WithLayout({ children }) {
   const { pathname } = useLocation()
@@ -39,6 +40,7 @@ export default function App() {
         <Route path={ROUTES.token.path} element={<WithLayout><TokenDetailsPage /></WithLayout>} />
         <Route path={ROUTES.chat.path} element={<WithLayout><ChatPage /></WithLayout>} />
         <Route path={ROUTES.leaderboard.path} element={<WithLayout><LeaderboardPage /></WithLayout>} />
+        <Route path={ROUTES.admin.path} element={<AdminPage />} />
         <Route path={ROUTES.background.path} element={<BackgroundPage />} />
         <Route path={ROUTES.test.path} element={<WithLayout><ContractTest /></WithLayout>} />
         <Route path="*" element={<Navigate to={ROUTES.discovery.path} replace />} />
