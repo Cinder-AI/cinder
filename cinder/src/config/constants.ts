@@ -8,7 +8,6 @@ const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env)
 const ENV = { ...nodeEnv, ...metaEnv };
 
 export const APP_CONFIG = {
-  OWNER_WALLET: ENV.VITE_OWNER_WALLET || ENV.OWNER_WALLET || '',
   API_BASE_URL: ENV.API_BASE_URL || '',
   STORAGE_URL: ENV.VITE_STORAGE_URL || ENV.STORAGE_URL || '',
   SSE_URL: ENV.VITE_SSE_URL || ENV.SSE_URL || '',
