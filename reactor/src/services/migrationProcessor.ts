@@ -1,9 +1,10 @@
 import type { FeeAmount } from "reactor-sdk-ts";
 import type { AppConfig } from "../config.js";
 import { logger } from "../logger.js";
-import type { CampaignUpdatedSseData } from "../types.js";
+import type { CampaignMigrationSignal } from "../types.js";
 import { IndexerGraphqlClient } from "./indexerGraphqlClient.js";
 import { ReactorDexService } from "./reactorDexService.js";
+import { BN } from "fuels";
 
 function toDecimalAmount(raw: string, decimals: number): number {
   const value = BigInt(raw);
@@ -37,7 +38,7 @@ export class MigrationProcessor {
     private readonly reactorDex: ReactorDexService,
   ) {}
 
-  async processCampaignSignal(signal: CampaignUpdatedSseData, signalId?: string): Promise<void> {
+  async processCampaignSignal(signal: CampaignMigrationSignal, signalId?: string): Promise<void> {
     if (signal.status !== "Migrated") {
       return;
     }
@@ -80,10 +81,10 @@ export class MigrationProcessor {
       return;
     }
 
-    const tokenAmount = toDecimalAmount(migration.token_reserve, campaign.token_decimals ?? 0);
-    const baseAmount = Number(migration.base_reserve);
-    if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
-      throw new Error(`Invalid base reserve for campaign=${signal.campaignId}: ${migration.base_reserve}`);
+    const tokenAmount = new BN(migration.token_reserve);
+    const fuelAmount = new BN(migration.fuel_reserve);
+    if (fuelAmount.isZero()) {
+      throw new Error(`Invalid fuel reserve for campaign=${signal.campaignId}: ${migration.fuel_reserve}`);
     }
 
     await this.reactorDex.createPoolAndSeedLiquidity({
@@ -91,8 +92,8 @@ export class MigrationProcessor {
       quoteAssetId: this.config.baseAssetId,
       tokenDecimals: campaign.token_decimals ?? 0,
       quoteDecimals: 9,
-      tokenAmount,
-      quoteAmount: baseAmount,
+      tokenAmount: tokenAmount.toNumber(),
+      quoteAmount: fuelAmount.toNumber(),
       feeTier: this.config.feeTier as FeeAmount,
       priceLower: this.config.migrationPriceLower,
       priceUpper: this.config.migrationPriceUpper,

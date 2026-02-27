@@ -1,5 +1,5 @@
 import { logger } from "../logger.js";
-import type { CampaignUpdatedSseData, SseEvent } from "../types.js";
+import type { CampaignMigrationSignal, SseEvent } from "../types.js";
 import { MigrationProcessor } from "./migrationProcessor.js";
 
 function parseSseEvent(block: string): SseEvent | null {
@@ -119,15 +119,16 @@ export class SseSubscriber {
   }
 
   private async handleEvent(event: SseEvent): Promise<void> {
-    if (event.event !== "campaign_updated") {
+    if (event.event !== "campaign_updated" && event.event !== "campaign_migrated") {
       return;
     }
 
     try {
-      const payload = JSON.parse(event.data) as CampaignUpdatedSseData;
+      const payload = JSON.parse(event.data) as CampaignMigrationSignal;
       await this.migrationProcessor.processCampaignSignal(payload, event.id);
     } catch (error) {
-      logger.error("Failed to handle campaign_updated SSE event", {
+      logger.error("Failed to handle migration SSE event", {
+        eventName: event.event,
         eventId: event.id,
         error: error instanceof Error ? error.message : String(error),
       });
