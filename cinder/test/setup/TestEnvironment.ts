@@ -1,4 +1,4 @@
-import type { BigNumberish, BN, Provider } from 'fuels';
+import { BigNumberish, BN, Provider } from 'fuels';
 import { WalletUnlocked, Wallet, concat, arrayify, sha256 } from 'fuels';
 import { launchTestNode } from 'fuels/test-utils';
 import { FuelFactory } from '../../src/sway-api/contracts/FuelFactory';
@@ -74,7 +74,7 @@ export class TestEnvironment {
       walletsConfig: {
         count: fullConfig.walletCount,
         coinsPerAsset: 1,
-        amountPerCoin: BigInt(fullConfig.baseAssetAmount?.toString() ?? '1000000000000'),
+        amountPerCoin: new BN(fullConfig.baseAssetAmount?.toString() ?? '1000000000000'),
       },
     });
 
@@ -127,7 +127,12 @@ export class TestEnvironment {
     const fuelAssetId = toAssetIdString(fuel.id.toB256());
 
     // 2. Deploy Cinder contract
-    const { waitForResult: cinderDeployResult } = await CinderFactory.deploy(creator);
+    const { waitForResult: cinderDeployResult } = await CinderFactory.deploy(creator, {
+      configurableConstants: {
+        // Tests fund CIN to multiple wallets with 9 decimals, so default MAX_SUPPLY is too low.
+        MAX_SUPPLY: 1_000_000_000_000_000_000n,
+      },
+    });
     const { contract: cinder } = await cinderDeployResult();
     console.log(`Cinder deployed: ${cinder.id.toB256()}`);
 

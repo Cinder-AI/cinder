@@ -105,17 +105,37 @@ export function buildRandomPledges(
   return pledges;
 }
 
+const powBigInt = (base: bigint, exp: bigint): bigint => {
+  let b = base;
+  let e = exp;
+  let result = 1n;
+
+  while (e > 0n) {
+    if (e % 2n === 1n) {
+      result *= b;
+    }
+    e /= 2n;
+    if (e > 0n) {
+      b *= b;
+    }
+  }
+
+  return result;
+};
+
 /**
  * Calculate bonding curve cost
  */
 export function bondingCurveCost(
-  base: bigint,
-  slope: bigint,
+  k: bigint,
+  n: bigint,
   s: bigint,
   delta: bigint,
-  scale: bigint = 1_000_000_000n
+  kScale: bigint
 ): bigint {
+  const exp = n + 1n;
   const sAfter = s + delta;
-  const costScaled = base * delta + (slope * (sAfter * sAfter - s * s)) / 2n;
-  return costScaled / scale;
+  const areaBefore = powBigInt(s, exp);
+  const areaAfter = powBigInt(sAfter, exp);
+  return (k * (areaAfter - areaBefore)) / (exp * kScale);
 }

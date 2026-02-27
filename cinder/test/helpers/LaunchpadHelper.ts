@@ -41,8 +41,8 @@ export interface CampaignData {
   curve: {
     soldSupply: BN;
     maxSupply: BN;
-    basePrice: BN;
-    slope: BN;
+    k: BN;
+    n: BN;
   };
   ammReserved: BN;
   boost: Option<{
@@ -188,13 +188,7 @@ export class LaunchpadHelper {
   /**
    * Get creator boost credit
    */
-  async getCreatorBoostCredit(creator: string): Promise<BN> {
-    const creatorIdentity: IdentityInput = {
-      Address: { bits: creator },
-    };
-    const { value } = await this.contract.functions.get_creator_boost_credit(creatorIdentity).get();
-    return value;
-  }
+
 
   // ==================== Write Methods ====================
 
@@ -476,8 +470,8 @@ export class LaunchpadHelper {
       curve: {
         soldSupply: campaign.curve.sold_supply,
         maxSupply: campaign.curve.max_supply,
-        basePrice: campaign.curve.base_price,
-        slope: campaign.curve.slope,
+        k: campaign.curve.k,
+        n: campaign.curve.n,
       },
       ammReserved: campaign.amm_reserved,
       boost: campaign.boost ? {
