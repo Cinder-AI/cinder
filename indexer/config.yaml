@@ -7,7 +7,7 @@ networks:
     contracts:
       - name: Launchpad
         address:
-          - 0xf9877f27adf45934199405c7367f59bb026b0b13c2dfc0f87e6c4428a6b7f325
+          - 0x108a302ea7cc2ed696eb03b9f96e9dc47b4369673505a29e1e5b248c8301e54a
         abi_file_path: abis/launchpad-abi.json
         handler: src/EventHandlers.ts
         events:
@@ -15,8 +15,6 @@ networks:
             logId: '14024137344589623889'
           - name: CampaignMigratedEvent
             logId: '10134986988804840532'
-          - name: BuyEvent
-            logId: '16560770387918921138'
           - name: TotalSupplyEvent
             logId: '8807078256608655330'
           - name: MintEvent
@@ -25,17 +23,17 @@ networks:
             logId: '1830997786495440415'
           - name: PledgedEvent
             logId: '17276933148737557424'
-          - name: SellEvent
-            logId: '8709694070647771023'
           - name: ClaimEvent
             logId: '2279040052662566249'
           - name: CampaignDeniedEvent
             logId: '12980308201962632363'
           - name: BoostEvent
             logId: '4146107088254613211'
+          - name: TradeEvent
+            logId: '8794783797310168923'
       - name: Cinder
         address:
-          - 0xd3bcd74f5b94bf797430b887ac1413c4d9d71b634f2080a2f8ea6193028c9e3a
+          - 0x9ab71fe3b95b3cf9b8f188edeefa7462cbc9e883cdae8a43e2649e29073c16f7
         abi_file_path: abis/cinder-abi.json
         handler: src/EventHandlers.ts
         events:

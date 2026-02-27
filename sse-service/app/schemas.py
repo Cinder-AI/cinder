@@ -26,20 +26,24 @@ class CampaignRow(BaseModel):
     current_price: str | None = None
     current_price_scaled: str | None = None
     curve_base_price: str | None = None
+    curve_k: str | None = None
+    curve_k_scale: str | None = None
     curve_max_supply: str | None = None
+    curve_n: str | None = None
     curve_slope: str | None = None
     curve_sold_supply: str | None = None
     image: str | None = None
     status: str | None = None
     target: str | None = None
-    token_asset_id: str | None = None
-    token_decimals: int | None = None
-    token_description: str | None = None
-    token_image: str | None = None
-    token_name: str | None = None
-    token_ticker: str | None = None
+    decimals: int | None = None
+    description: str | None = None
+    name: str | None = None
+    ticker: str | None = None
     total_pledged: str | None = None
     total_volume_base: str | None = None
+    curve_reserve: str | None = None
+    virtual_base_reserve: str | None = None
+    virtual_token_reserve: str | None = None
 
 
 class HasuraEventData(BaseModel):
@@ -105,6 +109,7 @@ class HeartbeatEventData(BaseModel):
 class CampaignUpdatedEventData(BaseModel):
     type: Literal["campaign_updated"] = "campaign_updated"
     op: Literal["INSERT", "UPDATE", "DELETE", "MANUAL"]
+    triggerName: str | None = None  # NEW: event trigger name for routing
     campaignId: str
     currentPrice: str | None = None
     currentPriceScaled: str | None = None
@@ -115,11 +120,42 @@ class CampaignUpdatedEventData(BaseModel):
     progress: float | None = None
     curveSoldSupply: str | None = None
     curveMaxSupply: str | None = None
+    virtualBaseReserve: str | None = None
+    virtualTokenReserve: str | None = None
     marketCapBase: str | None = None
     marketCapUsd: float | None = None
     fuelUsd: float | None = None
     fuelUsdUpdatedAt: str | None = None
     status: str | None = None
+    updatedAt: str
+
+
+class CampaignMigratedPayload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    created_at: str
+    delivery_info: HasuraDeliveryInfo
+    event: HasuraEvent
+    id: str
+    table: HasuraTable
+    trigger: HasuraTrigger
+
+
+class CampaignMigratedWebhookEnvelope(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    headers: list[HasuraHeader] = Field(default_factory=list)
+    payload: CampaignMigratedPayload
+    version: str | None = None
+
+
+class CampaignMigratedEventData(BaseModel):
+    type: Literal["campaign_migrated"] = "campaign_migrated"
+    op: Literal["INSERT", "UPDATE", "DELETE", "MANUAL"]
+    triggerName: str | None = None
+    campaignId: str
+    status: str | None = None
+    fuelReserve: str | None = None
     updatedAt: str
 
 
@@ -134,6 +170,12 @@ class BrokerStatsResponse(BaseModel):
 
 
 class CampaignUpdatedResponse(BaseModel):
+    ok: bool
+    campaignId: str
+    delivered: dict[str, int]
+
+
+class CampaignMigratedResponse(BaseModel):
     ok: bool
     campaignId: str
     delivered: dict[str, int]

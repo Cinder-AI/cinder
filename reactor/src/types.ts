@@ -7,7 +7,7 @@ export type Campaign = {
 
 export type CampaignMigratedEvent = {
   campaign_id: string;
-  base_reserve: string;
+  fuel_reserve: string;
   token_reserve: string;
   timestamp: string;
   tx_id: string;
@@ -34,6 +34,14 @@ export type CampaignUpdatedSseData = {
   campaignId: string;
   status?: string | null;
 };
+
+export type CampaignMigratedSseData = {
+  type: "campaign_migrated";
+  campaignId: string;
+  status?: string | null;
+};
+
+export type CampaignMigrationSignal = CampaignUpdatedSseData | CampaignMigratedSseData;
 
 export type SseEvent = {
   id?: string;

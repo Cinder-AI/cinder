@@ -43,8 +43,8 @@ export class IndexerGraphqlClient {
         Campaign(where: { id: { _eq: $campaignId } }, limit: 1) {
           id
           status
-          token_asset_id
-          token_decimals
+          token_asset_id: id
+          token_decimals: decimals
         }
       }
     `;
@@ -58,8 +58,8 @@ export class IndexerGraphqlClient {
         Campaign(where: { status: { _in: $statuses } }) {
           id
           status
-          token_asset_id
-          token_decimals
+          token_asset_id: id
+          token_decimals: decimals
         }
       }
     `;
@@ -78,7 +78,7 @@ export class IndexerGraphqlClient {
           limit: 1
         ) {
           campaign_id
-          base_reserve
+          fuel_reserve
           token_reserve
           timestamp
           tx_id

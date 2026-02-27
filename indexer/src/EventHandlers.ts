@@ -12,12 +12,11 @@ import {
   Launchpad,
   Launchpad_CampaignLaunchedEvent,
   Launchpad_CampaignMigratedEvent,
-  Launchpad_BuyEvent,
+  Launchpad_TradeEvent,
   Launchpad_TotalSupplyEvent,
   Launchpad_MintEvent,
   Launchpad_CampaignCreatedEvent,
   Launchpad_PledgedEvent,
-  Launchpad_SellEvent,
   Launchpad_ClaimEvent,
   Launchpad_CampaignDeniedEvent,
   Launchpad_BoostEvent,
@@ -41,13 +40,19 @@ import { getBlockHeight, getDayId, getDayStart, getTimestamp, getTxId } from "./
 import { BASE_ASSET_DECIMALS, toHuman } from "./utils/units";
 
 const PRICE_SCALE = 1_000_000_000n;
-const SLOPE_SCALE = PRICE_SCALE * PRICE_SCALE;
 
 const identityToId = (identity: { case: "Address" | "ContractId"; payload: { bits: string } }) =>
   identity.payload.bits;
 
-const getCurrentPriceScaled = (basePrice: bigint, slope: bigint, soldSupply: bigint) =>
-  basePrice + (slope * soldSupply) / SLOPE_SCALE;
+const getCurrentPriceScaledFromVirtualReserves = (
+  virtualBaseReserve: bigint,
+  virtualTokenReserve: bigint,
+) => {
+  if (virtualTokenReserve <= 0n) {
+    return 0n;
+  }
+  return (virtualBaseReserve * PRICE_SCALE) / virtualTokenReserve;
+};
 
 const getPoolSnapshotKey = (poolId: [{ bits: string }, { bits: string }, bigint]) => {
   const token0AssetId = poolId[0].bits;
@@ -138,26 +143,34 @@ Launchpad.CampaignLaunchedEvent.handler(async ({ event, context }) => {
   if (context.isPreload) {
     return;
   }
+  console.log('event', event);
+  console.log('event.params', event.params);
 
   const campaignId = event.params.asset_id.bits;
   const campaign = await context.Campaign.get(campaignId);
   if (campaign) {
-    const soldSupply = event.params.users_share;
-    const basePrice = event.params.base_price;
-    const slope = event.params.slope;
-    const currentPriceScaled = getCurrentPriceScaled(basePrice, slope, soldSupply);
+    const curveSupply = event.params.curve_supply;
+    const curveReserve = event.params.curve_reserve;
+    const curveMaxSupply = event.params.curve_max_supply;
+    const curveSoldSupply = event.params.users_share;
+    const virtualBaseReserve = event.params.virtual_base_reserve;
+    const virtualTokenReserve = event.params.virtual_token_reserve;
+    const currentPriceScaled = getCurrentPriceScaledFromVirtualReserves(
+      virtualBaseReserve,
+      virtualTokenReserve,
+    );
     const currentPrice = currentPriceScaled / PRICE_SCALE;
-    const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
     const updatedCampaign: Campaign = {
       ...campaign,
       status: "Launched",
-      curve_base_price: basePrice,
-      curve_slope: slope,
-      curve_sold_supply: soldSupply,
-      curve_max_supply: event.params.max_supply,
+      virtual_base_reserve: virtualBaseReserve,
+      virtual_token_reserve: virtualTokenReserve,
+      curve_max_supply: curveMaxSupply,
+      curve_supply: curveSupply,
+      curve_sold_supply: curveSoldSupply,
+      curve_reserve: curveReserve,
       current_price_scaled: currentPriceScaled,
       current_price: currentPrice,
-      curve_reserve: curveReserve,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -169,12 +182,12 @@ Launchpad.CampaignMigratedEvent.handler(async ({ event, context }) => {
   const txId = getTxId(event);
   const campaignId = event.params.asset_id.bits;
   const senderId = identityToId(event.params.sender);
-  const baseReserve = toHuman(event.params.base_reserve, BASE_ASSET_DECIMALS);
+  const fuelReserve = event.params.fuel_reserve;
   const entity: Launchpad_CampaignMigratedEvent = {
     id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
     campaign_id: campaignId,
     sender_id: senderId,
-    base_reserve: baseReserve,
+    fuel_reserve: fuelReserve,
     token_reserve: event.params.token_reserve,
     timestamp,
     tx_id: txId,
@@ -192,80 +205,8 @@ Launchpad.CampaignMigratedEvent.handler(async ({ event, context }) => {
     const updatedCampaign: Campaign = {
       ...campaign,
       status: "Migrated",
-      curve_reserve: baseReserve,
-    };
-    context.Campaign.set(updatedCampaign);
-  }
-});
-
-Launchpad.BuyEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_BuyEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_BuyEvent.set(entity);
-
-  if (context.isPreload) {
-    return;
-  }
-
-  const timestamp = getTimestamp(event);
-  const blockHeight = getBlockHeight(event);
-  const txId = getTxId(event);
-  const campaignId = event.params.asset_id.bits;
-  const userId = identityToId(event.params.sender);
-  const dayId = getDayId(timestamp);
-  const dayStart = getDayStart(timestamp);
-
-  const humanCost = toHuman(event.params.cost, BASE_ASSET_DECIMALS);
-  await upsertUser(context, userId, timestamp, 1n, humanCost);
-  await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, humanCost, humanCost);
-  await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
-  await upsertCampaignDailyStats(
-    context,
-    campaignId,
-    dayId,
-    dayStart,
-    1n,
-    humanCost,
-    humanCost,
-  );
-
-  const campaign = await context.Campaign.get(campaignId);
-  const tokenDecimals = campaign?.token_decimals ?? 0;
-  const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
-  const soldSupply = event.params.sold_supply;
-  const currentPriceScaled = campaign
-  ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
-  : 0n;
-  const currentPrice = currentPriceScaled / PRICE_SCALE;
-  const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
-  const trade: Trade = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-    user_id: userId,
-    campaign_id: campaignId,
-    side: "buy",
-    amount_token: humanAmountToken,
-    amount_base: humanCost,
-    price_scaled: currentPriceScaled,
-    price: currentPrice,
-    curve_reserve: curveReserve,
-    timestamp,
-    tx_id: txId,
-    block_height: blockHeight,
-  };
-  context.Trade.set(trade);
-
-  if (campaign && currentPriceScaled !== undefined && currentPrice !== undefined) {
-    const updatedCampaign: Campaign = {
-      ...campaign,
-      total_volume_base: campaign.total_volume_base + humanCost,
-      curve_sold_supply: soldSupply,
-      current_price_scaled: currentPriceScaled,
-      current_price: currentPrice,
-      curve_reserve: curveReserve,
-    };
+      curve_reserve: 0n,
+    }; 
     context.Campaign.set(updatedCampaign);
   }
 });
@@ -313,22 +254,21 @@ Launchpad.CampaignCreatedEvent.handler(async ({ event, context }) => {
     total_pledged: 0n,
     total_volume_base: 0n,
     status: "Active",
-    token_asset_id: tokenInfo.asset_id.bits,
-    token_name: tokenInfo.name,
-    token_ticker: tokenInfo.ticker,
-    token_description: tokenInfo.description,
-    token_decimals: tokenInfo.decimals,
-    token_image: tokenInfo.image,
+    name: tokenInfo.name,
+    ticker: tokenInfo.ticker,
+    description: tokenInfo.description,
+    decimals: tokenInfo.decimals,
     image: tokenInfo.image,
-    curve_base_price: 0n,
-    curve_slope: 0n,
-    curve_sold_supply: 0n,
+    virtual_base_reserve: 0n,
+    virtual_token_reserve: 0n,
     curve_max_supply: 0n,
+    curve_supply: 0n,
+    curve_sold_supply: 0n,
     current_price_scaled: 0n,
     current_price: 0n,
     curve_reserve: 0n,
     has_boost: false,
-    boost_multiplier_x1e6: 1_000_000n,
+    boost_multiplier_x1e6: 0n,
     boost_duration_secs: 0n,
     boost_burned_at: 0n,
     boost_ends_at: 0n,
@@ -387,79 +327,6 @@ Launchpad.PledgedEvent.handler(async ({ event, context }) => {
       ...campaign,
       total_pledged: humanTotalPledged,
       total_volume_base: campaign.total_volume_base + humanPledgeAmount,
-    };
-    context.Campaign.set(updatedCampaign);
-  }
-});
-
-Launchpad.SellEvent.handler(async ({ event, context }) => {
-  const entity: Launchpad_SellEvent = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-  };
-
-  context.Launchpad_SellEvent.set(entity);
-
-  if (context.isPreload) {
-    return;
-  }
-
-  const timestamp = getTimestamp(event);
-  const blockHeight = getBlockHeight(event);
-  const txId = getTxId(event);
-  const campaignId = event.params.asset_id.bits;
-  const userId = identityToId(event.params.sender);
-  const dayId = getDayId(timestamp);
-  const dayStart = getDayStart(timestamp);
-
-  const humanPayout = toHuman(event.params.payout, BASE_ASSET_DECIMALS);
-  await upsertUser(context, userId, timestamp, 1n, humanPayout);
-  await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
-  await upsertDailyStats(context, dayId, dayStart, 1n, humanPayout, -humanPayout);
-  await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
-  await upsertCampaignDailyStats(
-    context,
-    campaignId,
-    dayId,
-    dayStart,
-    1n,
-    humanPayout,
-    -humanPayout,
-  );
-
-  const campaign = await context.Campaign.get(campaignId);
-  const tokenDecimals = campaign?.token_decimals ?? 0;
-  const humanAmountToken = toHuman(event.params.amount, tokenDecimals);
-  const soldSupply = event.params.sold_supply;
-  const currentPriceScaled =
-    campaign !== undefined
-      ? getCurrentPriceScaled(campaign.curve_base_price, campaign.curve_slope, soldSupply)
-      : 0n;
-  const currentPrice = currentPriceScaled / PRICE_SCALE;
-  const curveReserve = toHuman(event.params.curve_reserve, BASE_ASSET_DECIMALS);
-  const trade: Trade = {
-    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
-    user_id: userId,
-    campaign_id: campaignId,
-    side: "sell",
-    amount_token: humanAmountToken,
-    amount_base: humanPayout,
-    price_scaled: currentPriceScaled,
-    price: currentPrice,
-    curve_reserve: curveReserve,
-    timestamp,
-    tx_id: txId,
-    block_height: blockHeight,
-  };
-  context.Trade.set(trade);
-
-  if (campaign && currentPriceScaled !== undefined && currentPrice !== undefined) {
-    const updatedCampaign: Campaign = {
-      ...campaign,
-      total_volume_base: campaign.total_volume_base + humanPayout,
-      curve_sold_supply: soldSupply,
-      current_price_scaled: currentPriceScaled,
-      current_price: currentPrice,
-      curve_reserve: curveReserve,
     };
     context.Campaign.set(updatedCampaign);
   }
@@ -628,4 +495,83 @@ ReactorPool.SwapEvent.handler(async ({ event, context }) => {
     block_height: blockHeight,
   };
   context.ReactorPool_SwapEvent.set(entity);
+});
+
+Launchpad.TradeEvent.handler(async ({ event, context }) => {
+  const timestamp = getTimestamp(event);
+  const blockHeight = getBlockHeight(event);
+  const txId = getTxId(event);
+  const campaignId = event.params.asset_id.bits;
+  const userId = identityToId(event.params.sender);
+  const tradeType = event.params.trade_type.case; // "Buy" or "Sell"
+  const side = tradeType.toLowerCase(); // "buy" or "sell"
+  const dayId = getDayId(timestamp);
+  const dayStart = getDayStart(timestamp);
+
+  if (context.isPreload) {
+    return;
+  }
+
+  const campaign = await context.Campaign.get(campaignId);
+  const tokenDecimals = campaign?.decimals ?? 0;
+  const humanAmountToken = toHuman(event.params.token_amount, tokenDecimals);
+  const humanAmountFuel = toHuman(event.params.fuel_amount, BASE_ASSET_DECIMALS);
+  
+  // For sell operations, fuel_amount is payout (positive), but we track volume as negative for sells
+  const volumeChange = side === "buy" ? humanAmountFuel : -humanAmountFuel;
+  
+  await upsertUser(context, userId, timestamp, 1n, humanAmountFuel);
+  await markUserActiveForDay(context, userId, dayId, dayStart, timestamp);
+  await upsertDailyStats(context, dayId, dayStart, 1n, humanAmountFuel, volumeChange);
+  await markCampaignUserActiveForDay(context, campaignId, userId, dayId, dayStart, timestamp);
+  await upsertCampaignDailyStats(
+    context,
+    campaignId,
+    dayId,
+    dayStart,
+    1n,
+    humanAmountFuel,
+    volumeChange,
+  );
+
+  const virtualBaseReserve = event.params.virtual_base_reserve;
+  const virtualTokenReserve = event.params.virtual_token_reserve;
+  const currentPriceScaled = campaign
+    ? getCurrentPriceScaledFromVirtualReserves(virtualBaseReserve, virtualTokenReserve)
+    : 0n;
+  const currentPrice = currentPriceScaled / PRICE_SCALE;
+  const curveReserve = event.params.curve_reserve;
+  
+  const trade: Trade = {
+    id: `${event.chainId}_${event.block.height}_${event.logIndex}`,
+    user_id: userId,
+    campaign_id: campaignId,
+    side,
+    token_amount: humanAmountToken,
+    token_amount_raw: event.params.token_amount,
+    fuel_amount: humanAmountFuel,
+    fuel_amount_raw: event.params.fuel_amount,
+    curve_supply: event.params.curve_supply,
+    curve_reserve: curveReserve,
+    virtual_base_reserve: virtualBaseReserve,
+    virtual_token_reserve: virtualTokenReserve,
+    timestamp,
+    tx_id: txId,
+    block_height: blockHeight,
+  };
+  context.Trade.set(trade);
+
+  if (campaign && currentPriceScaled !== undefined && currentPrice !== undefined) {
+    const updatedCampaign: Campaign = {
+      ...campaign,
+      total_volume_base: campaign.total_volume_base + humanAmountFuel,
+      virtual_base_reserve: virtualBaseReserve,
+      virtual_token_reserve: virtualTokenReserve,
+      curve_sold_supply: event.params.curve_supply,
+      current_price_scaled: currentPriceScaled,
+      current_price: currentPrice,
+      curve_reserve: curveReserve,
+    };
+    context.Campaign.set(updatedCampaign);
+  }
 });

@@ -87,14 +87,22 @@ def fetch_campaign_row(campaign_id: str) -> CampaignRow | None:
     query CampaignSnapshot($campaignId: String!) {
       Campaign(where: { id: { _eq: $campaignId } }, limit: 1) {
         id
+        created_at
+        creator_id
+        name
+        ticker
+        description
+        decimals
+        status
         current_price
         current_price_scaled
         total_volume_base
         total_pledged
         curve_sold_supply
         curve_max_supply
-        token_decimals
-        status
+        curve_reserve
+        virtual_base_reserve
+        virtual_token_reserve
       }
     }
     """

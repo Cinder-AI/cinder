@@ -30,16 +30,17 @@ pub struct CampaignLaunchedEvent {
     pub users_share: u64,
     pub remaining_supply: u64,
     pub amm_supply: u64,
-    pub base_price: u64,
-    pub slope: u64,
-    pub max_supply: u64,
+    pub virtual_base_reserve: u64,
+    pub virtual_token_reserve: u64,
+    pub curve_max_supply: u64,
     pub curve_reserve: u64, // FUEL
+    pub curve_supply: u64,
 }
 
 pub struct CampaignMigratedEvent {
     pub asset_id: AssetId,
     pub sender: Identity,
-    pub base_reserve: u64, // FUEL
+    pub fuel_reserve: u64, // FUEL
     pub token_reserve: u64,
 }
 
@@ -63,6 +64,8 @@ pub struct BuyEvent {
     pub cost: u64,
     pub sold_supply: u64,
     pub curve_reserve: u64, // FUEL
+    pub virtual_base_reserve: u64,
+    pub virtual_token_reserve: u64,
 }
 
 pub struct SellEvent {
@@ -72,7 +75,27 @@ pub struct SellEvent {
     pub payout: u64,
     pub sold_supply: u64,
     pub curve_reserve: u64, // FUEL
+    pub virtual_base_reserve: u64,
+    pub virtual_token_reserve: u64,
 }
+
+pub enum TradeType {
+    Buy: (),
+    Sell: (),
+}
+
+pub struct TradeEvent {
+    pub asset_id: AssetId,
+    pub sender: Identity,
+    pub token_amount: u64,
+    pub fuel_amount: u64,
+    pub curve_supply: u64,
+    pub curve_reserve: u64, // FUEL
+    pub virtual_base_reserve: u64,
+    pub virtual_token_reserve: u64,
+    pub trade_type: TradeType,
+}
+
 
 pub struct MintEvent {
     pub asset_id: AssetId,

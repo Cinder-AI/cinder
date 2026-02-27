@@ -9,42 +9,63 @@ type User {
 type Campaign {
   id: ID!
   creator_id: String!
-  created_at: BigInt!
+  name: String!
+  ticker: String!
+  description: String!
+  decimals: Int!
+  image: String!
+  status: String!
   target: BigInt!
   total_pledged: BigInt!
   total_volume_base: BigInt!
-  status: String!
-  token_asset_id: String!
-  token_name: String!
-  token_ticker: String!
-  token_description: String!
-  token_decimals: Int!
-  token_image: String!
-  image: String!
-  curve_base_price: BigInt!
-  curve_slope: BigInt!
-  curve_sold_supply: BigInt!
+  virtual_base_reserve: BigInt!
+  virtual_token_reserve: BigInt!
   curve_max_supply: BigInt!
+  curve_sold_supply: BigInt!
+  curve_supply: BigInt!
+  curve_reserve: BigInt!
   current_price_scaled: BigInt!
   current_price: BigInt!
-  curve_reserve: BigInt!
   has_boost: Boolean!
   boost_multiplier_x1e6: BigInt!
   boost_duration_secs: BigInt!
   boost_burned_at: BigInt!
   boost_ends_at: BigInt!
+  created_at: BigInt!
 }
 
 type Trade {
   id: ID!
-  user_id: String!
   campaign_id: String!
-  side: String!
-  amount_token: BigInt!
-  amount_base: BigInt!
-  price_scaled: BigInt!
-  price: BigInt!
+  user_id: String!
+  token_amount: BigInt!
+  token_amount_raw: BigInt!
+  fuel_amount: BigInt!
+  fuel_amount_raw: BigInt!
+  curve_supply: BigInt!
   curve_reserve: BigInt!
+  virtual_base_reserve: BigInt!
+  virtual_token_reserve: BigInt!
+  side: String!
+  timestamp: BigInt!
+  tx_id: String!
+  block_height: BigInt!
+}
+
+
+type Launchpad_TradeEvent {
+  id: ID!
+  campaign_id: String!
+  sender_id: String!
+  token_amount: BigInt!
+  token_amount_raw: BigInt!
+  fuel_amount: BigInt!
+  fuel_amount_raw: BigInt!
+  curve_supply: BigInt!
+  curve_reserve: BigInt!
+  virtual_base_reserve: BigInt!
+  virtual_token_reserve: BigInt!
+  side: String!
   timestamp: BigInt!
   tx_id: String!
   block_height: BigInt!
@@ -159,9 +180,6 @@ type Launchpad_CampaignLaunchedEvent {
   id: ID!
 }
 
-type Launchpad_BuyEvent {
-  id: ID!
-}
 
 type Launchpad_TotalSupplyEvent {
   id: ID!
@@ -176,10 +194,6 @@ type Launchpad_CampaignCreatedEvent {
 }
 
 type Launchpad_PledgedEvent {
-  id: ID!
-}
-
-type Launchpad_SellEvent {
   id: ID!
 }
 
@@ -215,7 +229,7 @@ type Launchpad_CampaignMigratedEvent {
   id: ID!
   campaign_id: String!
   sender_id: String!
-  base_reserve: BigInt!
+  fuel_reserve: BigInt!
   token_reserve: BigInt!
   timestamp: BigInt!
   tx_id: String!
