@@ -62,9 +62,9 @@ export function loadConfig(): AppConfig {
 
   return {
     port: getInt("REACTOR_PORT", 8000),
-    providerUrl: process.env.FUEL_PROVIDER_URL || "http://fuel-core:4000/v1/graphql",
-    indexerUrl: process.env.INDEXER_URL || "http://graphql-engine:8080/v1/graphql",
-    sseUrl: process.env.SSE_URL || "http://sse-service:8000/sse",
+    providerUrl: getRequired("FUEL_PROVIDER_URL"),
+    indexerUrl: getRequired("INDEXER_URL"),
+    sseUrl: getRequired("SSE_URL"),
     ownerPrivateKey: getRequired("REACTOR_OWNER_PRIVATE_KEY"),
     reactorPoolContractId: getRequired("REACTOR_POOL_CONTRACT_ID"),
     baseAssetId: getRequired("BASE_ASSET_ID"),

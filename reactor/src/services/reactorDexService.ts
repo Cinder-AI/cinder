@@ -57,6 +57,10 @@ export class ReactorDexService {
     return this.wallet.address.toB256();
   }
 
+  getWallet(): Wallet {
+    return this.wallet;
+  }
+
   async readPoolState(token0: string, token1: string, feeTier: FeeAmount): Promise<unknown> {
     return getPoolState(this.config.reactorPoolContractId, this.wallet, [token0, token1, feeTier]);
   }
