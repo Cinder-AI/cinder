@@ -4,6 +4,7 @@ export const ROUTES = {
   create: { path: '/create', title: 'Create Token', headerOptions: { showCreate: false, showBalance: false, showBackButton: true } },
   holdings: { path: '/holdings', title: 'Holdings', headerOptions: { showCreate: false, showBalance: false, showBackButton: true } },
   leaderboard: { path: '/leaderboard', title: 'Leaderboard', headerOptions: { showCreate: false, showBalance: false, showBackButton: true } },
+  admin: { path: '/admin', title: 'Admin', headerOptions: { showCreate: false, showBalance: false } },
   token: { path: '/token/:id', title: 'Token Details', headerOptions: { showCreate: true, showBalance: false, showBackButton: true } },
   chat: { path: '/chat/:id', title: 'Chat', headerOptions: { showCreate: true, showBalance: false, showBackButton: true } },
   background: { path: '/background', title: 'Background', headerOptions: { showCreate: false, showBalance: false } },
@@ -20,6 +21,7 @@ export function getHeaderOptionsByPath(pathname) {
     case ROUTES.create.path: return ROUTES.create.headerOptions
     case ROUTES.holdings.path: return ROUTES.holdings.headerOptions
     case ROUTES.leaderboard.path: return ROUTES.leaderboard.headerOptions
+    case ROUTES.admin.path: return ROUTES.admin.headerOptions
     case ROUTES.start.path: return ROUTES.start.headerOptions
     case ROUTES.test.path: return ROUTES.test.headerOptions
     default: return ROUTES.discovery.headerOptions
