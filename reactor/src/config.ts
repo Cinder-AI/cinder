@@ -9,10 +9,10 @@ type AppConfig = {
   reactorPoolContractId: string;
   baseAssetId: string;
   feeTier: FeeAmount;
+  priceLower: number;
+  priceUpper: number;
   slippageBps: number;
   deadlineBlocks: number;
-  migrationPriceLower: number;
-  migrationPriceUpper: number;
   watcherEnabled: boolean;
   watcherIntervalMs: number;
   deadWindowMs: number;
@@ -59,11 +59,11 @@ function getBool(name: string, fallback: boolean): boolean {
 
 export function loadConfig(): AppConfig {
   const feeTier = parseFeeAmount(process.env.REACTOR_POOL_FEE);
-
+ 
   return {
     port: getInt("REACTOR_PORT", 8000),
     providerUrl: getRequired("FUEL_PROVIDER_URL"),
-    indexerUrl: getRequired("INDEXER_URL"),
+    indexerUrl: "http://graphql-engine:8080/v1/graphql",
     sseUrl: getRequired("SSE_URL"),
     ownerPrivateKey: getRequired("REACTOR_OWNER_PRIVATE_KEY"),
     reactorPoolContractId: getRequired("REACTOR_POOL_CONTRACT_ID"),
@@ -71,8 +71,8 @@ export function loadConfig(): AppConfig {
     feeTier,
     slippageBps: getInt("REACTOR_SLIPPAGE_BPS", 100),
     deadlineBlocks: getInt("REACTOR_DEADLINE_BLOCKS", 1000),
-    migrationPriceLower: getInt("REACTOR_MIGRATION_PRICE_LOWER", 1),
-    migrationPriceUpper: getInt("REACTOR_MIGRATION_PRICE_UPPER", 1000),
+    priceLower: getInt("REACTOR_MIGRATION_PRICE_LOWER", -53040),
+    priceUpper: getInt("REACTOR_MIGRATION_PRICE_UPPER", -52920),
     watcherEnabled: getBool("REACTOR_WATCHER_ENABLED", true),
     watcherIntervalMs: getInt("REACTOR_WATCHER_INTERVAL_MS", 300000),
     deadWindowMs: getInt("REACTOR_DEAD_WINDOW_MS", 5 * 24 * 60 * 60 * 1000),

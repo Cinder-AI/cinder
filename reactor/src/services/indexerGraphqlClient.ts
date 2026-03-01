@@ -94,10 +94,10 @@ export class IndexerGraphqlClient {
   async getPoolForTokenPair(params: {
     tokenAssetId: string;
     baseAssetId: string;
-    fee: string;
+    fee: number;
   }): Promise<ReactorPoolCreateEvent | null> {
     const query = `
-      query PoolByTokenPair($tokenAssetId: String!, $baseAssetId: String!, $fee: bigint!) {
+      query PoolByTokenPair($tokenAssetId: String!, $baseAssetId: String!, $fee: numeric!) {
         ReactorPool_CreatePoolEvent(
           where: {
             fee: { _eq: $fee }
