@@ -49,6 +49,7 @@ export class SseSubscriber {
     if (this.running) {
       return;
     }
+    console.log('start sse subscriber');
     this.running = true;
     void this.connectLoop();
   }
@@ -125,8 +126,11 @@ export class SseSubscriber {
 
     try {
       const payload = JSON.parse(event.data) as CampaignMigrationSignal;
+      logger.info("Handling SSE event", { event: payload });
       await this.migrationProcessor.processCampaignSignal(payload, event.id);
     } catch (error) {
+      console.error(error);
+      console.error("RECEIPTS:", JSON.stringify(error?.metadata?.receipts, null, 2));
       logger.error("Failed to handle migration SSE event", {
         eventName: event.event,
         eventId: event.id,

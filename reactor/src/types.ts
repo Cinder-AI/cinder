@@ -41,10 +41,36 @@ export type CampaignMigratedSseData = {
   status?: string | null;
 };
 
-export type CampaignMigrationSignal = CampaignUpdatedSseData | CampaignMigratedSseData;
+export type CampaignMigrationSignal = CampaignUpdatedSseData | CampaignMigratedSseData | {
+  type?: string;
+  campaignId: string;
+  status: string;
+}
+
+export type GraphQLWebhookPayload = {
+  created_at: string;
+  delivery_info: {
+    current_retry: number;
+    max_retries: number;
+  };
+  event: {
+    data: {
+      new: Campaign;
+      old: Campaign;
+    };
+    op: string;
+    session_variables: any;
+    trace_context: any;
+  };
+  id: string;
+  table: { name: string; schema: string };
+  trigger: { name: string };
+  version: string;
+}
 
 export type SseEvent = {
   id?: string;
   event: string;
   data: string;
 };
+
