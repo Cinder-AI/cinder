@@ -6,28 +6,6 @@ import { IndexerGraphqlClient } from "./indexerGraphqlClient.js";
 import { ReactorDexService } from "./reactorDexService.js";
 import { BN } from "fuels";
 
-function toDecimalAmount(raw: string, decimals: number): number {
-  const value = BigInt(raw);
-  if (value < 0n) {
-    throw new Error(`Negative amount is not allowed: ${raw}`);
-  }
-
-  if (decimals < 0) {
-    throw new Error(`Invalid decimals: ${decimals}`);
-  }
-
-  const base = 10n ** BigInt(decimals);
-  const integer = value / base;
-  const fractional = value % base;
-  const composed = Number(integer) + Number(fractional) / Number(base);
-
-  if (!Number.isFinite(composed) || composed <= 0) {
-    throw new Error(`Amount conversion failed for value=${raw}, decimals=${decimals}`);
-  }
-
-  return composed;
-}
-
 export class MigrationProcessor {
   private readonly processedSignalIds = new Set<string>();
   private readonly processedCampaignIds = new Set<string>();
@@ -62,10 +40,8 @@ export class MigrationProcessor {
     const existingPool = await this.indexerClient.getPoolForTokenPair({
       tokenAssetId: campaign.token_asset_id,
       baseAssetId: this.config.baseAssetId,
-      fee: String(this.config.feeTier),
-    });
-
-    if (existingPool) {
+      fee: this.config.feeTier,
+    });    if (existingPool) {
       this.processedCampaignIds.add(signal.campaignId);
       if (signalId) this.processedSignalIds.add(signalId);
       logger.info("Pool already exists for migrated campaign, skipping creation", {
@@ -81,22 +57,36 @@ export class MigrationProcessor {
       return;
     }
 
-    const tokenAmount = new BN(migration.token_reserve);
-    const fuelAmount = new BN(migration.fuel_reserve);
+    // Clean and validate numeric strings before creating BN instances
+    const cleanTokenReserve = String(migration.token_reserve).trim().replace(/[^0-9]/g, '');
+    const cleanFuelReserve = String(migration.fuel_reserve).trim().replace(/[^0-9]/g, '');
+
+    logger.info("Migration reserves cleaned values", {
+      cleanTokenReserve,
+      cleanFuelReserve,
+    });
+
+    if (!/^\d+$/.test(cleanTokenReserve) || !/^\d+$/.test(cleanFuelReserve)) {
+      throw new Error(`Invalid reserve values for campaign=${signal.campaignId}: token=${cleanTokenReserve}, fuel=${cleanFuelReserve}`);
+    }
+
+    const tokenAmount = new BN(cleanTokenReserve);
+    const fuelAmount = new BN(cleanFuelReserve);
     if (fuelAmount.isZero()) {
       throw new Error(`Invalid fuel reserve for campaign=${signal.campaignId}: ${migration.fuel_reserve}`);
     }
 
+    const priceLower = -53040;
+    const priceUpper = -52920;
+
     await this.reactorDex.createPoolAndSeedLiquidity({
       tokenAssetId: campaign.token_asset_id,
       quoteAssetId: this.config.baseAssetId,
-      tokenDecimals: campaign.token_decimals ?? 0,
-      quoteDecimals: 9,
-      tokenAmount: tokenAmount.toNumber(),
-      quoteAmount: fuelAmount.toNumber(),
+      tokenAmount: tokenAmount.toString(),
+      quoteAmount: fuelAmount.toString(),
       feeTier: this.config.feeTier as FeeAmount,
-      priceLower: this.config.migrationPriceLower,
-      priceUpper: this.config.migrationPriceUpper,
+      priceLower: priceLower,
+      priceUpper: priceUpper,
     });
 
     this.processedCampaignIds.add(signal.campaignId);
