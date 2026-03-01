@@ -6,10 +6,17 @@ import { DeadPoolWatcher } from "./services/deadPoolWatcher.js";
 import { IndexerGraphqlClient } from "./services/indexerGraphqlClient.js";
 import { MigrationProcessor } from "./services/migrationProcessor.js";
 import { ReactorDexService } from "./services/reactorDexService.js";
-import { SseSubscriber } from "./services/sseSubscriber.js";
+import { CoinMarketCapFeed } from "./services/coinMarketCapFeed.js";
+import { SSEBroker } from "./services/sseBroker.js";
+import { setupWebhookRoutes } from "./routes/webhooks.js";
+import { setupSseRoutes } from "./routes/sse.js";
+import { setupChartRoutes } from "./routes/chart.js";
+import { setupCampaignRoutes } from "./routes/campaign.js";
+import { setupHealthRoutes } from "./routes/health.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
+
   const indexerClient = new IndexerGraphqlClient(config.indexerUrl);
   const reactorDex = new ReactorDexService({
     providerUrl: config.providerUrl,
@@ -20,17 +27,29 @@ async function main(): Promise<void> {
   });
 
   const migrationProcessor = new MigrationProcessor(config, indexerClient, reactorDex);
-  const sseSubscriber = new SseSubscriber(`${config.sseUrl}?campaignId=*`, migrationProcessor);
   const deadPoolWatcher = new DeadPoolWatcher(config, indexerClient, reactorDex);
 
+  // Initialize CoinMarketCap feed
+  const coinMarketCapFeed = new CoinMarketCapFeed(
+    config.coinMarketCapApiKey,
+    config.coinMarketCapEndpoint,
+    config.coinMarketCapSymbol,
+    "USD",
+    config.coinMarketCapPollSeconds
+  );
+
+  // Initialize SSE broker
+  const sseBroker = SSEBroker.instance();
+
   const app = express();
-  app.get("/healthz", (_req, res) => {
-    res.json({
-      ok: true,
-      wallet: reactorDex.getAddress(),
-      watcherEnabled: config.watcherEnabled,
-    });
-  });
+  app.use(express.json());
+
+  // Setup routes
+  setupHealthRoutes(app, reactorDex, config);
+  setupWebhookRoutes(app, sseBroker, coinMarketCapFeed);
+  setupSseRoutes(app, sseBroker, config.sseHeartbeatSeconds);
+  setupChartRoutes(app, indexerClient, coinMarketCapFeed, config.chartDefaultWindowSec, config.chartDefaultIntervalSec);
+  setupCampaignRoutes(app, indexerClient, coinMarketCapFeed);
 
   const server = app.listen(config.port, "0.0.0.0", () => {
     logger.info("Reactor service started", {
@@ -42,13 +61,14 @@ async function main(): Promise<void> {
     });
   });
 
-  sseSubscriber.start();
+  // Start background services
+  await coinMarketCapFeed.start();
   deadPoolWatcher.start();
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info("Shutdown signal received", { signal });
-    sseSubscriber.stop();
     deadPoolWatcher.stop();
+    await coinMarketCapFeed.stop();
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });
