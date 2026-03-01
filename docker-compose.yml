@@ -50,29 +50,14 @@ services:
     env_file:
       - .env
 
-  sse-service:
-    build:
-      context: ./sse-service
-      dockerfile: Dockerfile
-    ports:
-      - "5002:8000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    container_name: cinder-sse-service
-    restart: unless-stopped
-    depends_on:
-      graphql-engine:
-        condition: service_healthy
-      indexer:
-        condition: service_started
-    env_file:
-      - .env
   reactor:
     build:
       context: ./reactor
       dockerfile: Dockerfile
     ports:
-      - "5004:8000"
+      - "5002:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./reactor:/app
       - reactor_node_modules:/app/node_modules
@@ -81,9 +66,7 @@ services:
     depends_on:
       graphql-engine:
         condition: service_healthy
-      sse-service:
-        condition: service_started
-      fuel-core:
+      indexer:
         condition: service_started
     env_file:
       - .env
@@ -104,7 +87,7 @@ services:
     env_file:
       - .env
     depends_on:
-      sse-service:
+      reactor:
         condition: service_started
       storage:
         condition: service_started
