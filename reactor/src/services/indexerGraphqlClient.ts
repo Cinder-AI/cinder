@@ -4,6 +4,7 @@ import type {
   ReactorPoolCreateEvent,
   ReactorPoolSwapEvent,
 } from "../types.js";
+import type { CampaignRow, TradeRow } from "../types/enriched.js";
 
 type GraphqlResponse<T> = {
   data?: T;
@@ -148,5 +149,80 @@ export class IndexerGraphqlClient {
       fromTs: fromTs.toString(),
     });
     return data.ReactorPool_SwapEvent;
+  }
+
+  async fetchTrades(campaignId: string, fromTs: number, toTs: number): Promise<TradeRow[]> {
+    const queryTemplate = `
+      query Trades($campaignId: String!, $from: {ts_type}!, $to: {ts_type}!) {
+        Trade(
+          where: {
+            campaign_id: { _eq: $campaignId }
+            timestamp: { _gte: $from, _lte: $to }
+            price_scaled: { _is_null: false }
+          }
+          order_by: [{ timestamp: asc }, { block_height: asc }]
+        ) {
+          id
+          campaign_id
+          side
+          amount_token
+          amount_base
+          price_scaled
+          price
+          timestamp
+          block_height
+        }
+      }
+    `;
+
+    // Different deployments expose Trade.timestamp as numeric or bigint.
+    for (const tsType of ['numeric', 'bigint'] as const) {
+      const query = queryTemplate.replace('{ts_type}', tsType);
+      try {
+        const data = await this.query<{ Trade: TradeRow[] }>(query, {
+          campaignId,
+          from: fromTs.toString(),
+          to: toTs.toString(),
+        });
+        return data.Trade;
+      } catch (error: any) {
+        const message = error.message || String(error);
+        if (message.includes("where 'numeric' is expected") || message.includes("where 'bigint' is expected")) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error("Failed to fetch trades: incompatible timestamp type");
+  }
+
+  async fetchCampaignRow(campaignId: string): Promise<CampaignRow | null> {
+    const query = `
+      query CampaignSnapshot($campaignId: String!) {
+        Campaign(where: { id: { _eq: $campaignId } }, limit: 1) {
+          id
+          created_at
+          creator_id
+          name
+          ticker
+          description
+          decimals
+          status
+          current_price
+          current_price_scaled
+          total_volume_base
+          total_pledged
+          curve_sold_supply
+          curve_max_supply
+          curve_reserve
+          virtual_base_reserve
+          virtual_token_reserve
+        }
+      }
+    `;
+
+    const data = await this.query<{ Campaign: CampaignRow[] }>(query, { campaignId });
+    return data.Campaign[0] ?? null;
   }
 }
