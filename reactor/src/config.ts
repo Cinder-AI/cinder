@@ -21,11 +21,8 @@ type AppConfig = {
   minDeadUniqueTraders: number;
   recycleDryRun: boolean;
 
-  // CoinMarketCap
-  coinMarketCapApiKey: string | null;
-  coinMarketCapEndpoint: string | null;
-  coinMarketCapSymbol: string;
-  coinMarketCapPollSeconds: number;
+  // CoinGecko
+  coinGeckoPollSeconds: number;
 
   // SSE & Chart
   sseHeartbeatSeconds: number;
@@ -92,11 +89,8 @@ export function loadConfig(): AppConfig {
     minDeadUniqueTraders: getInt("REACTOR_DEAD_MIN_UNIQUE_TRADERS", 2),
     recycleDryRun: getBool("REACTOR_RECYCLE_DRY_RUN", true),
 
-    // CoinMarketCap
-    coinMarketCapApiKey: process.env.COINMK_API_KEY ?? null,
-    coinMarketCapEndpoint: process.env.COINMK_API_ENDPOINT ?? null,
-    coinMarketCapSymbol: process.env.COINMK_SYMBOL ?? "FUEL",
-    coinMarketCapPollSeconds: getInt("COINMK_POLL_SECONDS", 20),
+    // CoinGecko
+    coinGeckoPollSeconds: getInt("COINGECKO_POLL_SECONDS", 20),
 
     // SSE & Chart
     sseHeartbeatSeconds: getInt("SSE_HEARTBEAT_SECONDS", 15),

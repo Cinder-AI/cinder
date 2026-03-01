@@ -4,7 +4,7 @@
 
 import type { Request, Response } from "express";
 import type { IndexerGraphqlClient } from "../services/indexerGraphqlClient.js";
-import type { CoinMarketCapFeed } from "../services/coinMarketCapFeed.js";
+import type { FuelPriceFeed } from "../services/fuelPriceFeed.js";
 import { buildCampaignUpdatedEventData } from "../events/campaign.js";
 import { logger } from "../logger.js";
 
@@ -14,7 +14,7 @@ import { logger } from "../logger.js";
 export function setupCampaignRoutes(
   app: any,
   indexerClient: IndexerGraphqlClient,
-  cmcFeed: CoinMarketCapFeed
+  fuelPriceFeed: FuelPriceFeed
 ): void {
   app.get("/campaign/snapshot", async (req: Request, res: Response) => {
     try {
@@ -30,7 +30,7 @@ export function setupCampaignRoutes(
         return;
       }
 
-      const snapshot = await buildCampaignUpdatedEventData(row, cmcFeed, "MANUAL");
+      const snapshot = await buildCampaignUpdatedEventData(row, fuelPriceFeed, "MANUAL");
       res.json({
         ok: true,
         campaignId,

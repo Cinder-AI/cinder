@@ -4,7 +4,7 @@
 
 import type { Request, Response } from "express";
 import type { IndexerGraphqlClient } from "../services/indexerGraphqlClient.js";
-import type { CoinMarketCapFeed } from "../services/coinMarketCapFeed.js";
+import type { FuelPriceFeed } from "../services/fuelPriceFeed.js";
 import { buildChartPoints, fillCandleGaps, buildChartSummary } from "../services/chartBuilder.js";
 import { logger } from "../logger.js";
 
@@ -17,7 +17,7 @@ const DEFAULT_CHART_INTERVAL_SEC = 300; // 5 minutes
 export function setupChartRoutes(
   app: any,
   indexerClient: IndexerGraphqlClient,
-  cmcFeed: CoinMarketCapFeed,
+  fuelPriceFeed: FuelPriceFeed,
   defaultWindowSec: number = 86400,
   defaultIntervalSec: number = 300
 ): void {
@@ -46,7 +46,7 @@ export function setupChartRoutes(
         return;
       }
 
-      const quote = await cmcFeed.getQuote();
+      const quote = await fuelPriceFeed.getQuote();
       const fuelUsd = quote?.price ?? null;
 
       // Fetch trades in a thread to avoid blocking

@@ -6,7 +6,7 @@ import { DeadPoolWatcher } from "./services/deadPoolWatcher.js";
 import { IndexerGraphqlClient } from "./services/indexerGraphqlClient.js";
 import { MigrationProcessor } from "./services/migrationProcessor.js";
 import { ReactorDexService } from "./services/reactorDexService.js";
-import { CoinMarketCapFeed } from "./services/coinMarketCapFeed.js";
+import { FuelPriceFeed } from "./services/fuelPriceFeed.js";
 import { SSEBroker } from "./services/sseBroker.js";
 import { setupWebhookRoutes } from "./routes/webhooks.js";
 import { setupSseRoutes } from "./routes/sse.js";
@@ -29,14 +29,8 @@ async function main(): Promise<void> {
   const migrationProcessor = new MigrationProcessor(config, indexerClient, reactorDex);
   const deadPoolWatcher = new DeadPoolWatcher(config, indexerClient, reactorDex);
 
-  // Initialize CoinMarketCap feed
-  const coinMarketCapFeed = new CoinMarketCapFeed(
-    config.coinMarketCapApiKey,
-    config.coinMarketCapEndpoint,
-    config.coinMarketCapSymbol,
-    "USD",
-    config.coinMarketCapPollSeconds
-  );
+  // Initialize Fuel price feed
+  const fuelPriceFeed = new FuelPriceFeed();
 
   // Initialize SSE broker
   const sseBroker = SSEBroker.instance();
@@ -46,10 +40,10 @@ async function main(): Promise<void> {
 
   // Setup routes
   setupHealthRoutes(app, reactorDex, config);
-  setupWebhookRoutes(app, sseBroker, coinMarketCapFeed);
+  setupWebhookRoutes(app, sseBroker, fuelPriceFeed);
   setupSseRoutes(app, sseBroker, config.sseHeartbeatSeconds);
-  setupChartRoutes(app, indexerClient, coinMarketCapFeed, config.chartDefaultWindowSec, config.chartDefaultIntervalSec);
-  setupCampaignRoutes(app, indexerClient, coinMarketCapFeed);
+  setupChartRoutes(app, indexerClient, fuelPriceFeed, config.chartDefaultWindowSec, config.chartDefaultIntervalSec);
+  setupCampaignRoutes(app, indexerClient, fuelPriceFeed);
 
   const server = app.listen(config.port, "0.0.0.0", () => {
     logger.info("Reactor service started", {
@@ -62,13 +56,13 @@ async function main(): Promise<void> {
   });
 
   // Start background services
-  await coinMarketCapFeed.start();
+  await fuelPriceFeed.start();
   deadPoolWatcher.start();
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info("Shutdown signal received", { signal });
     deadPoolWatcher.stop();
-    await coinMarketCapFeed.stop();
+    await fuelPriceFeed.stop();
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });

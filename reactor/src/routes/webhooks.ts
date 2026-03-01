@@ -11,7 +11,7 @@ import type {
 import { buildCampaignUpdatedEventData } from "../events/campaign.js";
 import { buildTradeCreatedEventData } from "../events/trade.js";
 import type { SSEBroker } from "../services/sseBroker.js";
-import type { CoinMarketCapFeed } from "../services/coinMarketCapFeed.js";
+import type { FuelPriceFeed } from "../services/fuelPriceFeed.js";
 import { logger } from "../logger.js";
 
 /**
@@ -20,7 +20,7 @@ import { logger } from "../logger.js";
 export function setupWebhookRoutes(
   app: any,
   broker: SSEBroker,
-  cmcFeed: CoinMarketCapFeed
+  fuelPriceFeed: FuelPriceFeed
 ): void {
   // Campaign updated webhook
   app.post("/campaign_updated", async (req: Request, res: Response) => {
@@ -45,7 +45,7 @@ export function setupWebhookRoutes(
 
       const eventData = await buildCampaignUpdatedEventData(
         row,
-        cmcFeed,
+        fuelPriceFeed,
         webhookPayload.event.op,
         webhookPayload.trigger?.name || null
       );
@@ -84,7 +84,7 @@ export function setupWebhookRoutes(
 
       const eventData = buildCampaignUpdatedEventData(
         row,
-        cmcFeed,
+        fuelPriceFeed,
         webhookPayload.event.op,
         webhookPayload.trigger?.name || null
       );
@@ -109,11 +109,11 @@ export function setupWebhookRoutes(
 
   // Trade webhook (both /trade and /trade_updated)
   app.post("/trade", async (req: Request, res: Response) => {
-    await handleTradeWebhook(req, res, broker, cmcFeed);
+    await handleTradeWebhook(req, res, broker, fuelPriceFeed);
   });
 
   app.post("/trade_updated", async (req: Request, res: Response) => {
-    await handleTradeWebhook(req, res, broker, cmcFeed);
+    await handleTradeWebhook(req, res, broker, fuelPriceFeed);
   });
 }
 
@@ -121,7 +121,7 @@ async function handleTradeWebhook(
   req: Request,
   res: Response,
   broker: SSEBroker,
-  cmcFeed: CoinMarketCapFeed
+  fuelPriceFeed: FuelPriceFeed
 ): Promise<void> {
   try {
     const payload = req.body as TradeInsertPayload;
@@ -132,7 +132,7 @@ async function handleTradeWebhook(
       return;
     }
 
-    const eventData = await buildTradeCreatedEventData(row, cmcFeed);
+    const eventData = await buildTradeCreatedEventData(row, fuelPriceFeed);
     const msg = toSse("trade_created", eventData, payload.id);
     await broker.publishCampaign(row.campaign_id, msg);
 
