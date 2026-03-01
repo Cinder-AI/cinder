@@ -1,14 +1,8 @@
-import {
-  createPoolWithLiquidityDecimalized,
-  type FeeAmount,
-  getPoolState,
-  quoteExactIn,
-  swapExactIn,
-} from "reactor-sdk-ts";
-import { Provider, Wallet } from "fuels";
+import { Provider, Wallet, BN } from "fuels";
 import { logger } from "../logger.js";
-
-type PoolId = [string, string, FeeAmount];
+import { CreatePoolWithLiquidityLoader } from "../scripts/CreatePoolWithLiquidityLoader.js";
+import { RemoveLiquidity } from "../scripts/RemoveLiquidity.js";
+import { FeeAmount } from "reactor-sdk-ts";
 
 type ReactorServiceConfig = {
   providerUrl: string;
@@ -21,34 +15,91 @@ type ReactorServiceConfig = {
 type CreateMigrationPoolParams = {
   tokenAssetId: string;
   quoteAssetId: string;
-  tokenDecimals: number;
-  quoteDecimals: number;
-  tokenAmount: number;
-  quoteAmount: number;
+  tokenAmount: string;
+  quoteAmount: string;
   feeTier: FeeAmount;
   priceLower: number;
   priceUpper: number;
 };
 
-type SwapParams = {
-  poolId: PoolId;
-  tokenInId: string;
-  tokenOutId: string;
-  amountIn: bigint;
-  slippageBps?: number;
-  deadlineBlocks?: number;
+type RemoveLiquidityParams = {
+  poolId: [string, string, FeeAmount];
+  recipient: string;
+  tickLower: number;
+  tickUpper: number;
+  liquidity: string;
+  amount0Min: string;
+  amount1Min: string;
+  deadline: number;
 };
 
-const applySlippage = (quotedOut: bigint, slippageBps: number): bigint => {
-  const bps = BigInt(Math.max(0, Math.min(10_000, slippageBps)));
-  return (quotedOut * (10_000n - bps)) / 10_000n;
+// Конвертация чисел в формат i64 для скриптов
+const INDENT = 1n << 63n;
+function toI64(n: number): { underlying: BN } {
+  const underlying = n >= 0
+    ? INDENT + BigInt(n)
+    : INDENT - BigInt(-n);
+  return { underlying: new BN(underlying.toString()) };
+}
+
+// Снап тиков к spacing
+const TICK_SPACING_MAP: Record<number, number> = {
+  100: 1,
+  500: 10,
+  1000: 10,
+  3000: 60,
+  3500: 60,
+  10000: 200,
+  10500: 200,
 };
+
+function sqrtBigInt(value: bigint): bigint {
+  if (value < 0n) throw new Error("negative");
+  if (value < 2n) return value;
+  let x0 = value / 2n;
+  let x1 = (x0 + value / x0) / 2n;
+  while (x1 < x0) {
+    x0 = x1;
+    x1 = (x0 + value / x0) / 2n;
+  }
+  return x0;
+}
+
+function priceToSqrtPriceX96(amountToken1: BN, amountToken0: BN): BN {
+  if (amountToken0.eq(new BN(0))) throw new Error("division by zero");
+  const Q96 = new BN(2).pow(new BN(96));
+  const priceX192 = amountToken1.mul(Q96).mul(Q96).div(amountToken0);
+  const sqrt = sqrtBigInt(BigInt(priceX192.toString()));
+  return new BN(sqrt.toString());
+}
+
+function sortAssets(a: string, b: string) {
+  const aNorm = a.toLowerCase();
+  const bNorm = b.toLowerCase();
+
+  if (aNorm < bNorm) {
+    return {
+      token0: a,
+      token1: b,
+      reversed: false
+    };
+  }
+
+  return {
+    token0: b,
+    token1: a,
+    reversed: true
+  };
+}
+
 
 export class ReactorDexService {
   private readonly provider: Provider;
   private readonly wallet: Wallet;
+  private readonly config: ReactorServiceConfig;
 
-  constructor(private readonly config: ReactorServiceConfig) {
+  constructor(config: ReactorServiceConfig) {
+    this.config = config;
     this.provider = new Provider(config.providerUrl);
     this.wallet = Wallet.fromPrivateKey(config.ownerPrivateKey, this.provider);
   }
@@ -61,83 +112,105 @@ export class ReactorDexService {
     return this.wallet;
   }
 
-  async readPoolState(token0: string, token1: string, feeTier: FeeAmount): Promise<unknown> {
-    return getPoolState(this.config.reactorPoolContractId, this.wallet, [token0, token1, feeTier]);
-  }
-
   async createPoolAndSeedLiquidity(params: CreateMigrationPoolParams): Promise<unknown> {
-    logger.info("Creating reactor pool and seeding liquidity", {
-      tokenAssetId: params.tokenAssetId,
-      quoteAssetId: params.quoteAssetId,
-      tokenAmount: params.tokenAmount,
-      quoteAmount: params.quoteAmount,
-      feeTier: params.feeTier,
+    logger.info("Creating reactor pool and seeding liquidity", params);
+
+    const loader = new CreatePoolWithLiquidityLoader(this.wallet);
+    loader.setConfigurableConstants({
+      REACTOR_POOL_CONTRACT_ID: { bits: this.config.reactorPoolContractId },
     });
 
-    return createPoolWithLiquidityDecimalized(
-      this.config.reactorPoolContractId,
-      this.wallet,
-      params.tokenAssetId,
-      params.quoteAssetId,
-      params.tokenDecimals,
-      params.quoteDecimals,
-      params.tokenAmount,
-      params.quoteAmount,
+    const { token0, token1, reversed } = sortAssets(params.tokenAssetId, params.quoteAssetId);
+
+    const tokenAmount = new BN(params.tokenAmount);
+    const quoteAmount = new BN(params.quoteAmount);
+    const tickSpacing = TICK_SPACING_MAP[params.feeTier];
+    if (!tickSpacing) throw new Error(`Unknown feeTier: ${params.feeTier}`);
+
+    const priceLower = Math.round(params.priceLower / tickSpacing) * tickSpacing;
+    const priceUpper = Math.round(params.priceUpper / tickSpacing) * tickSpacing;
+
+    const sqrtPriceX96 = priceToSqrtPriceX96(quoteAmount, tokenAmount);
+
+    const recipient = { Address: { bits: this.wallet.address.toB256() } };
+    const tokenAsset = { bits: params.tokenAssetId };
+    const quoteAsset = { bits: params.quoteAssetId };
+    const deadline = 60000000;
+
+    const scope = loader.functions.main(
+      tokenAsset,
+      quoteAsset,
       params.feeTier,
-      params.priceLower,
-      params.priceUpper,
-      this.config.deadlineBlocks,
-    );
-  }
-
-  async swapExactInWithQuote(params: SwapParams): Promise<unknown> {
-    const quotedOutRaw = await quoteExactIn(
-      this.config.reactorPoolContractId,
-      this.wallet,
-      params.poolId,
-      params.tokenInId,
-      params.tokenOutId,
-      params.amountIn.toString(),
-      "0",
-      "0",
-      params.deadlineBlocks ?? this.config.deadlineBlocks,
-    );
-
-    const quotedOut = BigInt(String(quotedOutRaw));
-    if (quotedOut <= 0n) {
-      throw new Error("Reactor quote returned zero output");
-    }
-
-    const minOut = applySlippage(quotedOut, params.slippageBps ?? this.config.slippageBps);
-    return swapExactIn(
-      this.config.reactorPoolContractId,
-      this.wallet,
-      params.poolId,
-      params.tokenInId,
-      params.tokenOutId,
-      params.amountIn.toString(),
-      minOut.toString(),
-      "0",
-      params.deadlineBlocks ?? this.config.deadlineBlocks,
-    );
-  }
-
-  async pullLiquidityForRecycle(input: {
-    campaignId: string;
-    poolId: string;
-    dryRun: boolean;
-  }): Promise<void> {
-    if (input.dryRun) {
-      logger.info("Dead-pool recycle dry-run hit", {
-        campaignId: input.campaignId,
-        poolId: input.poolId,
+      sqrtPriceX96,
+      toI64(priceLower),
+      toI64(priceUpper),
+      tokenAmount,
+      quoteAmount,
+      new BN(0),
+      new BN(0),
+      recipient,
+      deadline,
+    )
+      .txParams({ variableOutputs: 4 })
+      .assembleTxParams({
+        feePayerAccount: this.wallet,
+        accountCoinQuantities: [
+          {
+            amount: tokenAmount,
+            assetId: tokenAsset.bits,
+            account: this.wallet,
+            changeOutputAccount: this.wallet,
+          },
+          {
+            amount: quoteAmount,
+            assetId: quoteAsset.bits,
+            account: this.wallet,
+            changeOutputAccount: this.wallet,
+          },
+        ],
       });
-      return;
-    }
 
-    throw new Error(
-      "Liquidity recycle requires per-position parameters (tick range + liquidity). " +
-        "Enable REACTOR_RECYCLE_DRY_RUN or implement position resolver.",
-    );
+    const { waitForResult } = await scope.call();
+    try {
+      return await waitForResult();
+    } catch (e: any) {
+      console.error("REVERT RECEIPTS:", JSON.stringify(e.receipts, null, 2));
+      throw e;
+    }
+  }
+
+  async removeLiquidity(params: RemoveLiquidityParams): Promise<unknown> {
+    logger.info("Removing liquidity from reactor pool", params);
+
+    const script = new RemoveLiquidity(this.wallet);
+    script.setConfigurableConstants({
+      REACTOR_POOL_CONTRACT_ID: { bits: this.config.reactorPoolContractId },
+    });
+
+    const [token0, token1, feeTier] = params.poolId;
+    const poolId = [
+      { bits: token0 },
+      { bits: token1 },
+      params.poolId[2],
+    ];
+
+    const recipient = { Address: { bits: params.recipient } };
+    const scope = script.functions.main(
+      poolId,
+      recipient,
+      toI64(params.tickLower),
+      toI64(params.tickUpper),
+      new BN(params.liquidity),
+      new BN(params.amount0Min),
+      new BN(params.amount1Min),
+      new BN(params.deadline),
+    )
+      .txParams({ variableOutputs: 2 })
+      .assembleTxParams({
+        feePayerAccount: this.wallet,
+      });
+
+    const { waitForResult } = await scope.call();
+    return await waitForResult();
   }
 }
